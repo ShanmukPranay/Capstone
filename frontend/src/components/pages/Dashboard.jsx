@@ -13,7 +13,10 @@ import {
   Plus,
   X,
   File,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Upload,
+  RefreshCw,
+  BarChart3
 } from 'lucide-react';
 import {
   LineChart,
@@ -39,6 +42,7 @@ const Dashboard = () => {
   const [showNewAnalysisModal, setShowNewAnalysisModal] = useState(false);
   const [exportFormat, setExportFormat] = useState('pdf');
   const [isExporting, setIsExporting] = useState(false);
+  const [selectedAnalysisType, setSelectedAnalysisType] = useState(null);
 
   const [stats] = useState([
     { label: 'Total Documents', value: '12', icon: FileText, color: '#4f46e5', change: '+2 this week' },
@@ -80,7 +84,7 @@ const Dashboard = () => {
     return `status-badge ${colors[status] || 'badge-info'}`;
   };
 
-  // Professional PDF Export with fixed header
+  // Export as PDF
   const exportAsPDF = () => {
     const doc = new jsPDF('p', 'mm', 'a4');
     const pageWidth = doc.internal.pageSize.getWidth();
@@ -88,35 +92,29 @@ const Dashboard = () => {
     const margin = 20;
     let y = 20;
 
-    // ===== HEADER =====
-    // Top border line
     doc.setDrawColor(79, 70, 229);
     doc.setLineWidth(2);
     doc.line(margin, y, pageWidth - margin, y);
     y += 8;
 
-    // Main Title - Evidence-Traceable (single line)
     doc.setFontSize(22);
     doc.setTextColor(79, 70, 229);
     doc.setFont('helvetica', 'bold');
     doc.text('Evidence-Traceable', margin, y + 2);
     y += 8;
 
-    // Subtitle - Information Extraction Platform
     doc.setFontSize(13);
     doc.setTextColor(100, 116, 139);
     doc.setFont('helvetica', 'normal');
     doc.text('Information Extraction Platform', margin, y + 2);
     y += 10;
 
-    // Report Title
     doc.setFontSize(16);
     doc.setTextColor(15, 23, 42);
     doc.setFont('helvetica', 'bold');
     doc.text('Intelligence Report', margin, y);
     y += 10;
 
-    // Date and Report ID
     doc.setFontSize(9);
     doc.setTextColor(148, 163, 184);
     doc.setFont('helvetica', 'normal');
@@ -124,20 +122,17 @@ const Dashboard = () => {
     doc.text(`Report ID: LEGAL-${Date.now().toString().slice(-6)}`, pageWidth - margin - 30, y);
     y += 8;
 
-    // Bottom border
     doc.setDrawColor(200, 200, 200);
     doc.setLineWidth(0.5);
     doc.line(margin, y, pageWidth - margin, y);
     y += 10;
 
-    // ===== SECTION: SUMMARY STATISTICS =====
     doc.setFontSize(13);
     doc.setTextColor(15, 23, 42);
     doc.setFont('helvetica', 'bold');
     doc.text('Executive Summary', margin, y);
     y += 8;
 
-    // Stats in 3 columns
     const colWidth = (pageWidth - margin * 2) / 3;
     const statPairs = [
       [stats[0], stats[1]],
@@ -150,21 +145,18 @@ const Dashboard = () => {
       let localY = y;
       
       pair.forEach((stat) => {
-        // Value
         doc.setFontSize(16);
         doc.setTextColor(15, 23, 42);
         doc.setFont('helvetica', 'bold');
         doc.text(stat.value, x, localY);
         localY += 6;
         
-        // Label
         doc.setFontSize(8);
         doc.setTextColor(100, 116, 139);
         doc.setFont('helvetica', 'normal');
         doc.text(stat.label, x, localY);
         localY += 4;
         
-        // Change
         doc.setFontSize(7);
         const isPositive = stat.change.startsWith('+');
         doc.setTextColor(isPositive ? 34 : 239, isPositive ? 197 : 68, isPositive ? 94 : 68);
@@ -175,14 +167,12 @@ const Dashboard = () => {
 
     y += 48;
 
-    // ===== SECTION: RISK DISTRIBUTION =====
     doc.setFontSize(13);
     doc.setTextColor(15, 23, 42);
     doc.setFont('helvetica', 'bold');
     doc.text('Risk Distribution', margin, y);
     y += 8;
 
-    // Risk table
     doc.setFontSize(9);
     doc.setTextColor(100, 116, 139);
     doc.setFont('helvetica', 'bold');
@@ -205,14 +195,12 @@ const Dashboard = () => {
 
     y += 8;
 
-    // ===== SECTION: RECENT DOCUMENTS =====
     doc.setFontSize(13);
     doc.setTextColor(15, 23, 42);
     doc.setFont('helvetica', 'bold');
     doc.text('Recent Documents', margin, y);
     y += 8;
 
-    // Table headers
     const headers = ['Document', 'Type', 'Status', 'Risks', 'Date'];
     const colSizes = [45, 25, 25, 15, 30];
     let xPos = margin;
@@ -229,7 +217,6 @@ const Dashboard = () => {
     });
     y += 6;
 
-    // Table rows
     documents.forEach((docItem, idx) => {
       const rowData = [
         docItem.name.length > 15 ? docItem.name.substring(0, 13) + '..' : docItem.name,
@@ -253,7 +240,6 @@ const Dashboard = () => {
       });
       y += 7;
 
-      // Check if we need a new page
       if (y > pageHeight - 30) {
         doc.addPage();
         y = 20;
@@ -262,7 +248,6 @@ const Dashboard = () => {
 
     y += 10;
 
-    // ===== FOOTER =====
     doc.setDrawColor(200, 200, 200);
     doc.setLineWidth(0.5);
     doc.line(margin, y, pageWidth - margin, y);
@@ -283,7 +268,6 @@ const Dashboard = () => {
       y
     );
 
-    // Page number
     const pageCount = doc.internal.getNumberOfPages();
     for (let i = 1; i <= pageCount; i++) {
       doc.setPage(i);
@@ -385,11 +369,29 @@ const Dashboard = () => {
 
   const handleNewAnalysis = () => {
     setShowNewAnalysisModal(true);
+    setSelectedAnalysisType(null);
+  };
+
+  const handleAnalysisOptionClick = (type) => {
+    setSelectedAnalysisType(type);
   };
 
   const handleNewAnalysisConfirm = () => {
+    if (!selectedAnalysisType) {
+      toast.error('Please select an analysis type');
+      return;
+    }
+    
     setShowNewAnalysisModal(false);
-    toast.success('New analysis started!');
+    
+    const typeNames = {
+      'upload': 'Upload Document',
+      'reanalyze': 'Re-analyze Existing',
+      'risk': 'Risk Assessment'
+    };
+    
+    toast.success(`${typeNames[selectedAnalysisType]} started!`);
+    setSelectedAnalysisType(null);
   };
 
   const getFormatIcon = () => {
@@ -617,18 +619,33 @@ const Dashboard = () => {
             <div className="modal-body">
               <p className="modal-description">Start a new AI-powered legal document analysis.</p>
               <div className="new-analysis-options">
-                <div className="analysis-option">
-                  <FileText size={32} className="option-icon" />
+                <div 
+                  className={`analysis-option ${selectedAnalysisType === 'upload' ? 'selected' : ''}`}
+                  onClick={() => handleAnalysisOptionClick('upload')}
+                >
+                  <div className="option-icon-wrapper">
+                    <Upload size={28} className="option-icon" />
+                  </div>
                   <h4>Upload Document</h4>
                   <p>Upload a new document for analysis</p>
                 </div>
-                <div className="analysis-option">
-                  <Brain size={32} className="option-icon" />
+                <div 
+                  className={`analysis-option ${selectedAnalysisType === 'reanalyze' ? 'selected' : ''}`}
+                  onClick={() => handleAnalysisOptionClick('reanalyze')}
+                >
+                  <div className="option-icon-wrapper">
+                    <RefreshCw size={28} className="option-icon" />
+                  </div>
                   <h4>Re-analyze Existing</h4>
                   <p>Re-analyze an already uploaded document</p>
                 </div>
-                <div className="analysis-option">
-                  <Shield size={32} className="option-icon" />
+                <div 
+                  className={`analysis-option ${selectedAnalysisType === 'risk' ? 'selected' : ''}`}
+                  onClick={() => handleAnalysisOptionClick('risk')}
+                >
+                  <div className="option-icon-wrapper">
+                    <BarChart3 size={28} className="option-icon" />
+                  </div>
                   <h4>Risk Assessment</h4>
                   <p>Run a new risk assessment report</p>
                 </div>
@@ -638,7 +655,11 @@ const Dashboard = () => {
               <button className="modal-btn cancel" onClick={() => setShowNewAnalysisModal(false)}>
                 Cancel
               </button>
-              <button className="modal-btn confirm" onClick={handleNewAnalysisConfirm}>
+              <button 
+                className="modal-btn confirm" 
+                onClick={handleNewAnalysisConfirm}
+                disabled={!selectedAnalysisType}
+              >
                 <Plus size={16} />
                 Start Analysis
               </button>
