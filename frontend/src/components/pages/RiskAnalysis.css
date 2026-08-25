@@ -1,0 +1,409 @@
+.risk-analysis-page {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 28px;
+}
+
+.page-header h1 {
+  font-size: 26px;
+  font-weight: 700;
+  color: #0f172a;
+  letter-spacing: -0.5px;
+}
+
+.page-subtitle {
+  font-size: 14px;
+  color: #64748b;
+  margin-top: 2px;
+}
+
+.header-disclaimer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: #fef3c7;
+  border-radius: 8px;
+  font-size: 12px;
+  color: #92400e;
+}
+
+.header-disclaimer svg {
+  color: #d97706;
+}
+
+.risk-summary {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.summary-card {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 20px 24px;
+  background: white;
+  border-radius: 12px;
+  border: 1px solid #e9edf2;
+}
+
+.summary-card.high {
+  border-left: 4px solid #ef4444;
+}
+
+.summary-card.medium {
+  border-left: 4px solid #f59e0b;
+}
+
+.summary-card.low {
+  border-left: 4px solid #22c55e;
+}
+
+.summary-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+}
+
+.summary-card.high .summary-icon {
+  background: #fee2e2;
+  color: #ef4444;
+}
+
+.summary-card.medium .summary-icon {
+  background: #fef3c7;
+  color: #f59e0b;
+}
+
+.summary-card.low .summary-icon {
+  background: #dcfce7;
+  color: #22c55e;
+}
+
+.summary-content {
+  display: flex;
+  flex-direction: column;
+}
+
+.summary-number {
+  font-size: 28px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.summary-label {
+  font-size: 14px;
+  color: #64748b;
+}
+
+.filter-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 20px;
+  background: white;
+  border-radius: 12px;
+  border: 1px solid #e9edf2;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.filter-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.filter-group span {
+  font-size: 13px;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.filter-btn {
+  padding: 4px 14px;
+  background: #f1f3f6;
+  border: none;
+  border-radius: 16px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.filter-btn:hover {
+  background: #e2e8f0;
+}
+
+.filter-btn.active {
+  background: #4f46e5;
+  color: white;
+}
+
+.search-filter {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #f8f9fc;
+  padding: 4px 12px;
+  border-radius: 6px;
+  border: 1px solid #e9edf2;
+}
+
+.search-filter input {
+  border: none;
+  background: transparent;
+  padding: 4px 0;
+  font-size: 13px;
+  outline: none;
+  width: 160px;
+}
+
+.search-filter input::placeholder {
+  color: #94a3b8;
+}
+
+.risks-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.risk-card {
+  background: white;
+  border-radius: 12px;
+  border: 1px solid #e9edf2;
+  overflow: hidden;
+  transition: all 0.2s ease;
+}
+
+.risk-card.high {
+  border-left: 4px solid #ef4444;
+}
+
+.risk-card.medium {
+  border-left: 4px solid #f59e0b;
+}
+
+.risk-card.low {
+  border-left: 4px solid #22c55e;
+}
+
+.risk-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 20px;
+  background: none;
+  border: none;
+  width: 100%;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.risk-header:hover {
+  background: #fafbfc;
+}
+
+.risk-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.severity-high {
+  color: #ef4444;
+}
+
+.severity-medium {
+  color: #f59e0b;
+}
+
+.severity-low {
+  color: #22c55e;
+}
+
+.risk-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: #0f172a;
+}
+
+.risk-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.severity-badge {
+  padding: 2px 10px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.badge-high {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.badge-medium {
+  background: #fef3c7;
+  color: #d97706;
+}
+
+.badge-low {
+  background: #dcfce7;
+  color: #16a34a;
+}
+
+.risk-confidence {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.risk-details {
+  padding: 0 20px 20px 20px;
+  border-top: 1px solid #f1f3f6;
+  padding-top: 16px;
+}
+
+.detail-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.detail-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: #64748b;
+  min-width: 80px;
+}
+
+.detail-value {
+  font-size: 13px;
+  color: #0f172a;
+}
+
+.detail-value.reason-text {
+  color: #475569;
+}
+
+.category-tag {
+  padding: 2px 12px;
+  background: #e0e7ff;
+  color: #4f46e5;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.risk-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #f1f3f6;
+}
+
+.risk-actions button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border: none;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-evidence {
+  background: #f1f3f6;
+  color: #475569;
+}
+
+.btn-evidence:hover {
+  background: #e2e8f0;
+}
+
+.btn-review {
+  background: #e0e7ff;
+  color: #4f46e5;
+}
+
+.btn-review:hover {
+  background: #c7d2fe;
+}
+
+.risk-disclaimer {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 24px;
+  padding: 16px 20px;
+  background: #fef3c7;
+  border-radius: 12px;
+  border: 1px solid #fcd34d;
+}
+
+.risk-disclaimer svg {
+  color: #d97706;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.risk-disclaimer p {
+  font-size: 13px;
+  color: #92400e;
+  line-height: 1.5;
+}
+
+@media (max-width: 768px) {
+  .risk-summary {
+    grid-template-columns: 1fr;
+  }
+  
+  .header-disclaimer {
+    display: none;
+  }
+  
+  .filter-bar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .filter-group {
+    justify-content: center;
+  }
+  
+  .risk-header {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  
+  .risk-left {
+    width: 100%;
+  }
+  
+  .risk-right {
+    width: 100%;
+    justify-content: flex-end;
+  }
+}
