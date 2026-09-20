@@ -1,0 +1,81 @@
+﻿from fastapi import APIRouter, UploadFile, File, HTTPException, Form
+from datetime import datetime
+import uuid
+
+from services.supabase_client import supabase_admin
+from models.rag_engine import RAGEngine
+from models.embeddings import EmbeddingService
+
+router = APIRouter(prefix="/api/documents", tags=["documents"])
+
+rag_engine = RAGEngine()
+embedder = EmbeddingService()
+
+
+@router.get("")
+async def list_documents(user_id: str = "default-user"):
+    res = (supabase_admin.table("documents")
+           .select("*")
+           .eq("user_id", user_id)
+           .order("created_at", desc=True)
+           .execute())
+    return {"documents": res.data, "total": len(res.data), "status": "success"}
+
+
+@router.get("/{document_id}")
+async def get_document(document_id: str):
+    res = supabase_admin.table("documents").select("*").eq("id", document_id).execute()
+    if not res.data:
+        raise HTTPException(404, "Document not found")
+    return {"status": "success", "document": res.data[0]}
+
+
+@router.post("/upload")
+async def upload_document(
+    file: UploadFile = File(...),
+    user_id: str = Form("default-user"),
+):
+    try:
+        content = await file.read()
+        text_content = content.decode("utf-8", errors="ignore")
+        doc_id = f"doc_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:6]}"
+
+        supabase_admin.table("documents").insert({
+            "id": doc_id,
+            "user_id": user_id,
+            "name": file.filename,
+            "file_type": file.content_type or "txt",
+            "file_size": len(content),
+            "content": text_content[:50000],
+            "status": "processing",
+            "document_type": "legal",
+        }).execute()
+
+        chunks = rag_engine.chunk_text(text_content)
+        rows = []
+        for i, chunk in enumerate(chunks):
+            rows.append({
+                "document_id": doc_id,
+                "chunk_index": i,
+                "text": chunk,
+                "token_count": len(chunk.split()),
+                "embedding": embedder.encode(chunk),
+            })
+
+        if rows:
+            supabase_admin.table("document_chunks").insert(rows).execute()
+
+        supabase_admin.table("documents").update({
+            "status": "analyzed",
+            "total_chunks": len(rows),
+            "last_analyzed_at": datetime.utcnow().isoformat(),
+        }).eq("id", doc_id).execute()
+
+        return {
+            "status": "success",
+            "document_id": doc_id,
+            "filename": file.filename,
+            "total_chunks": len(rows),
+        }
+    except Exception as e:
+        raise HTTPException(500, str(e))
