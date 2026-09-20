@@ -1,0 +1,27 @@
+﻿services:
+  - type: web
+    name: evidence-traceable-api
+    env: python
+    region: singapore
+    plan: free
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/health
+    envVars:
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: LLM_PROVIDER
+        value: openrouter
+      - key: LLM_MODEL
+        value: nex-agi/nex-n2.5-pro:free
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        value: ""
+      - key: PYTHON_VERSION
+        value: "3.11.0"
