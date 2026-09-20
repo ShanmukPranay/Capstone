@@ -1,220 +1,214 @@
-import React, { useState } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import {
   Shield,
   CheckCircle,
   FileText,
-  ExternalLink,
-  AlertCircle,
   Link,
   Search,
-  Filter,
   ChevronDown,
-  ChevronRight
+  ChevronRight,
+  Loader2,
+  RefreshCw,
+  AlertTriangle
 } from 'lucide-react';
+import toast from 'react-hot-toast';
+import api from '../../services/api';
 import './Evidence.css';
 
 const Evidence = () => {
-  const [expandedClaims, setExpandedClaims] = useState({});
-  const [filter, setFilter] = useState('all');
+  const [evidence, setEvidence] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [expandedItems, setExpandedItems] = useState({});
+  const [searchQuery, setSearchQuery] = useState('');
 
-  const claims = [
-    {
-      id: '001',
-      claim: 'Contract termination requires 30 days written notice.',
-      evidence: 'Page 5, Section 8.2',
-      sourceText: '"Employee shall provide written notice of termination at least thirty days prior to the intended termination date."',
-      strength: 'Strong',
-      confidence: 94,
-      verified: true,
-      category: 'Termination'
-    },
-    {
-      id: '002',
-      claim: 'Non-compete clause applies for 12 months after termination.',
-      evidence: 'Page 8, Section 11.3',
-      sourceText: '"The Employee agrees not to engage in any business that is competitive with the Employer for a period of 12 months following termination."',
-      strength: 'Medium',
-      confidence: 82,
-      verified: false,
-      category: 'Non-Compete'
-    },
-    {
-      id: '003',
-      claim: 'Confidentiality obligation extends indefinitely.',
-      evidence: 'Page 6, Section 7.1',
-      sourceText: '"All confidential information disclosed during employment shall remain confidential indefinitely."',
-      strength: 'Strong',
-      confidence: 91,
-      verified: true,
-      category: 'Confidentiality'
-    },
-    {
-      id: '004',
-      claim: 'Governing law is the State of California.',
-      evidence: 'Page 12, Section 15.2',
-      sourceText: '"This Agreement shall be governed by and construed in accordance with the laws of the State of California."',
-      strength: 'Strong',
-      confidence: 97,
-      verified: true,
-      category: 'Jurisdiction'
-    },
-    {
-      id: '005',
-      claim: 'Dispute resolution requires arbitration.',
-      evidence: 'Page 10, Section 13.1',
-      sourceText: '"Any dispute arising out of or relating to this Agreement shall be resolved by binding arbitration."',
-      strength: 'Medium',
-      confidence: 78,
-      verified: false,
-      category: 'Dispute Resolution'
+  useEffect(() => {
+    loadEvidence();
+  }, []);
+
+  const loadEvidence = async () => {
+    setIsLoading(true);
+    try {
+      const res = await api.getAllEvidence();
+      const items = res.evidence || [];
+      // Deduplicate by message_id to avoid showing same citation 3x
+      const seen = new Set();
+      const unique = items.filter(e => {
+        if (seen.has(e.message_id)) return false;
+        seen.add(e.message_id);
+        return true;
+      });
+      setEvidence(unique);
+
+      if (unique.length > 0) {
+        toast.success(`Loaded ${unique.length} unique citations`);
+      } else {
+        toast.info('No evidence yet. Ask questions in the ChatBot to generate citations.');
+      }
+    } catch (err) {
+      console.error('Failed to load evidence:', err);
+      toast.error('Could not load evidence');
+    } finally {
+      setIsLoading(false);
     }
-  ];
-
-  const toggleClaim = (id) => {
-    setExpandedClaims(prev => ({
-      ...prev,
-      [id]: !prev[id]
-    }));
   };
 
-  const getStrengthBadge = (strength) => {
-    const colors = {
-      'Strong': 'badge-strong',
-      'Medium': 'badge-medium',
-      'Weak': 'badge-weak'
-    };
-    return `strength-badge ${colors[strength] || 'badge-medium'}`;
+  const toggleItem = (id) => {
+    setExpandedItems(prev => ({ ...prev, [id]: !prev[id] }));
   };
 
-  const filteredClaims = filter === 'all' ? claims : claims.filter(c => c.category === filter);
-  const categories = ['all', ...new Set(claims.map(c => c.category))];
+  const getStrengthBadge = (similarity) => {
+    if (similarity >= 0.4) return { cls: 'badge-strong', label: 'Strong' };
+    if (similarity >= 0.25) return { cls: 'badge-medium', label: 'Medium' };
+    return { cls: 'badge-weak', label: 'Weak' };
+  };
+
+  const isRealLLM = (model) => model && model !== 'mock';
+
+  const filteredEvidence = evidence.filter(e =>
+    !searchQuery ||
+    e.answer?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    e.excerpt?.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const avgConfidence = evidence.length > 0
+    ? Math.round(evidence.reduce((s, e) => s + (e.confidence || 0), 0) / evidence.length)
+    : 0;
+
+  const realLLMCount = evidence.filter(e => isRealLLM(e.model_used)).length;
 
   return (
     <div className="evidence-page">
       <div className="page-header">
         <div>
           <h1>Evidence Traceability</h1>
-          <p className="page-subtitle">Track and verify AI-extracted claims with source evidence</p>
+          <p className="page-subtitle">All AI-generated answers with source evidence from your documents</p>
         </div>
         <div className="header-stats">
           <div className="stat-item">
-            <span className="stat-number">{claims.length}</span>
-            <span className="stat-label">Total Claims</span>
+            <Shield size={16} />
+            <div>
+              <div className="stat-value">{evidence.length}</div>
+              <div className="stat-label">Citations</div>
+            </div>
           </div>
           <div className="stat-item">
-            <span className="stat-number">{claims.filter(c => c.verified).length}</span>
-            <span className="stat-label">Verified</span>
+            <CheckCircle size={16} />
+            <div>
+              <div className="stat-value">{avgConfidence}%</div>
+              <div className="stat-label">Avg Confidence</div>
+            </div>
           </div>
           <div className="stat-item">
-            <span className="stat-number">{claims.filter(c => c.strength === 'Strong').length}</span>
-            <span className="stat-label">Strong Evidence</span>
+            <Link size={16} />
+            <div>
+              <div className="stat-value">{realLLMCount}</div>
+              <div className="stat-label">Real LLM</div>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Filter Bar */}
-      <div className="filter-bar">
-        <div className="filter-group">
-          <Filter size={16} />
-          <span>Filter by category:</span>
-          {categories.map(cat => (
-            <button
-              key={cat}
-              className={`filter-btn ${filter === cat ? 'active' : ''}`}
-              onClick={() => setFilter(cat)}
-            >
-              {cat.charAt(0).toUpperCase() + cat.slice(1)}
-            </button>
-          ))}
-        </div>
-        <div className="search-filter">
+      {/* Toolbar */}
+      <div className="evidence-toolbar">
+        <div className="search-box">
           <Search size={16} />
-          <input type="text" placeholder="Search claims..." />
+          <input
+            type="text"
+            placeholder="Search answers or excerpts..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
         </div>
+        <button className="btn-refresh" onClick={loadEvidence} disabled={isLoading}>
+          <RefreshCw size={14} className={isLoading ? 'spin' : ''} />
+          Refresh
+        </button>
       </div>
 
-      {/* Evidence Chain */}
-      <div className="evidence-chain">
-        <div className="chain-header">
-          <h3>Evidence Chain</h3>
-          <span className="chain-desc">AI Claim → Document → Source → Verification</span>
+      {isLoading && (
+        <div className="evidence-loading">
+          <Loader2 size={32} className="spin" />
+          <p>Loading evidence...</p>
         </div>
-        <div className="chain-flow">
-          <span className="chain-node">AI CLAIM</span>
-          <ChevronRight size={16} className="chain-arrow" />
-          <span className="chain-node">DOCUMENT CHUNK</span>
-          <ChevronRight size={16} className="chain-arrow" />
-          <span className="chain-node">SOURCE SENTENCE</span>
-          <ChevronRight size={16} className="chain-arrow" />
-          <span className="chain-node">PAGE / SECTION</span>
-          <ChevronRight size={16} className="chain-arrow" />
-          <span className="chain-node verified">VERIFICATION STATUS</span>
+      )}
+
+      {!isLoading && filteredEvidence.length === 0 && (
+        <div className="evidence-empty">
+          <Shield size={48} />
+          <h3>No Evidence Yet</h3>
+          <p>
+            {evidence.length === 0
+              ? 'Ask questions in the ChatBot to generate evidence-backed answers.'
+              : 'No results match your search.'}
+          </p>
         </div>
-      </div>
+      )}
 
-      {/* Claims List */}
-      <div className="claims-list">
-        {filteredClaims.map((claim) => (
-          <div key={claim.id} className={`claim-card ${claim.verified ? 'verified' : 'unverified'}`}>
-            <button className="claim-header" onClick={() => toggleClaim(claim.id)}>
-              <div className="claim-left">
-                <span className="claim-id">#{claim.id}</span>
-                <span className="claim-text">{claim.claim}</span>
-              </div>
-              <div className="claim-right">
-                <span className={`status-badge ${claim.verified ? 'verified' : 'pending'}`}>
-                  {claim.verified ? <CheckCircle size={14} /> : <AlertCircle size={14} />}
-                  {claim.verified ? 'Verified' : 'Pending'}
-                </span>
-                <span className={getStrengthBadge(claim.strength)}>
-                  {claim.strength}
-                </span>
-                {expandedClaims[claim.id] ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
-              </div>
-            </button>
+      {!isLoading && filteredEvidence.length > 0 && (
+        <div className="evidence-list">
+          {filteredEvidence.map((item, idx) => {
+            const isExpanded = expandedItems[item.message_id] || false;
+            const { cls, label } = getStrengthBadge(item.similarity);
 
-            {expandedClaims[claim.id] && (
-              <div className="claim-details">
-                <div className="detail-row">
-                  <span className="detail-label">Evidence:</span>
-                  <span className="detail-value">{claim.evidence}</span>
-                </div>
-                <div className="detail-row">
-                  <span className="detail-label">Source Sentence:</span>
-                  <span className="detail-value source-text">"{claim.sourceText}"</span>
-                </div>
-                <div className="detail-row">
-                  <span className="detail-label">Confidence:</span>
-                  <div className="confidence-bar">
-                    <div className="confidence-fill" style={{ width: `${claim.confidence}%` }}></div>
-                    <span className="confidence-value">{claim.confidence}%</span>
+            return (
+              <div key={`${item.message_id}-${idx}`} className="evidence-card">
+                <div className="evidence-card-header" onClick={() => toggleItem(item.message_id)}>
+                  <div className="evidence-card-icon">
+                    <FileText size={18} />
+                  </div>
+                  <div className="evidence-card-title">
+                    <div className="evidence-card-answer">{item.answer?.slice(0, 140)}{item.answer?.length > 140 ? '...' : ''}</div>
+                    <div className="evidence-card-meta">
+                      <span className={`strength-badge ${cls}`}>{label}</span>
+                      <span>Chunk #{item.chunk_index ?? '-'}</span>
+                      <span>·</span>
+                      <span>Similarity: {((item.similarity || 0) * 100).toFixed(1)}%</span>
+                      <span>·</span>
+                      <span>Confidence: {item.confidence || 0}%</span>
+                      <span>·</span>
+                      <span className={isRealLLM(item.model_used) ? 'model-real' : 'model-mock'}>
+                        {isRealLLM(item.model_used) ? '🧠 Real LLM' : '🔸 Mock'}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="evidence-card-toggle">
+                    {isExpanded ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
                   </div>
                 </div>
-                <div className="detail-row">
-                  <span className="detail-label">Category:</span>
-                  <span className="detail-value category-tag">{claim.category}</span>
-                </div>
-                <div className="claim-actions">
-                  <button className="btn-view">
-                    <FileText size={14} />
-                    View Evidence
-                  </button>
-                  <button className="btn-open">
-                    <ExternalLink size={14} />
-                    Open Document
-                  </button>
-                  {!claim.verified && (
-                    <button className="btn-verify">
-                      <CheckCircle size={14} />
-                      Verify
-                    </button>
-                  )}
-                </div>
+
+                {isExpanded && (
+                  <div className="evidence-card-body">
+                    <div className="evidence-row">
+                      <strong>Full Answer:</strong>
+                      <p>{item.answer}</p>
+                    </div>
+                    <div className="evidence-row">
+                      <strong>Source Excerpt:</strong>
+                      <p className="excerpt">{item.excerpt || '(no excerpt)'}</p>
+                    </div>
+                    <div className="evidence-row">
+                      <strong>Document ID:</strong>
+                      <code>{item.document_id}</code>
+                    </div>
+                    <div className="evidence-row">
+                      <strong>Chunk ID:</strong>
+                      <code>{item.chunk_id}</code>
+                    </div>
+                    <div className="evidence-row">
+                      <strong>Model Used:</strong>
+                      <code>{item.model_used || 'N/A'}</code>
+                    </div>
+                    <div className="evidence-row">
+                      <strong>Timestamp:</strong>
+                      <span>{new Date(item.created_at).toLocaleString()}</span>
+                    </div>
+                  </div>
+                )}
               </div>
-            )}
-          </div>
-        ))}
-      </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 };

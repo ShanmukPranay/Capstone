@@ -1,7 +1,7 @@
-﻿from fastapi import APIRouter
-
+﻿from fastapi import APIRouter, HTTPException
 from services.supabase_client import supabase_admin
 from models.llm_handler import LLMHandler
+import json
 
 router = APIRouter(prefix="/api/analyze", tags=["analysis"])
 
@@ -10,18 +10,109 @@ llm = LLMHandler()
 
 @router.post("/{document_id}")
 async def analyze_document(document_id: str):
-    chunks = (supabase_admin.table("document_chunks")
-              .select("text")
-              .eq("document_id", document_id)
-              .limit(5)
-              .execute()).data
+    """
+    Analyze a document using the LLM:
+    - Extract parties, dates, obligations, amounts
+    - Extract key clauses
+    - Return structured analysis
+    """
+    try:
+        # 1. Get document
+        doc_res = supabase_admin.table("documents").select("*").eq("id", document_id).execute()
+        if not doc_res.data:
+            raise HTTPException(404, "Document not found")
 
-    combined = " ".join(c["text"] for c in chunks)
-    entities = llm.extract_legal_entities(combined)
+        doc = doc_res.data[0]
+        doc_content = doc.get("content", "")[:6000]  # Limit to 6000 chars
 
+        if not doc_content:
+            raise HTTPException(400, "Document has no content")
+
+        # 2. Build extraction prompt
+        prompt = f"""Analyze this legal document and extract structured information.
+Return ONLY valid JSON (no markdown, no code fences) with this exact structure:
+
+{{
+  "parties": {{"employer": "...", "employee": "...", "other": []}},
+  "dates": {{"start_date": "...", "end_date": "...", "other_dates": []}},
+  "duration": "...",
+  "key_obligations": ["...", "..."],
+  "notice_period": "...",
+  "termination_clause": "...",
+  "confidentiality_clause": "...",
+  "amounts": ["..."],
+  "key_clauses": [
+    {{"name": "TERMINATION", "text": "...", "evidence": "..."}},
+    {{"name": "CONFIDENTIALITY", "text": "...", "evidence": "..."}}
+  ],
+  "risks": [
+    {{"risk": "...", "severity": "low|medium|high", "evidence": "..."}}
+  ]
+}}
+
+DOCUMENT TEXT:
+{doc_content}
+
+Return ONLY the JSON object, nothing else:"""
+
+        # 3. Call LLM
+        result = llm.generate_response(prompt, [])
+        raw_text = result.get("text", "").strip()
+
+        # Strip markdown fences if present
+        if raw_text.startswith("```"):
+            parts = raw_text.split("```")
+            if len(parts) >= 2:
+                raw_text = parts[1]
+                if raw_text.startswith("json"):
+                    raw_text = raw_text[4:]
+        raw_text = raw_text.strip()
+
+        # 4. Parse JSON
+        try:
+            analysis = json.loads(raw_text)
+        except json.JSONDecodeError:
+            analysis = {
+                "raw_response": raw_text,
+                "note": "LLM returned non-JSON; showing raw response",
+            }
+
+        # 5. Save to document metadata
+        supabase_admin.table("documents").update({
+            "metadata": {
+                "analysis": analysis,
+                "analyzed_at": __import__("datetime").datetime.utcnow().isoformat(),
+                "model_used": result.get("model"),
+            }
+        }).eq("id", document_id).execute()
+
+        # 6. Return
+        return {
+            "status": "success",
+            "document_id": document_id,
+            "document_name": doc.get("name"),
+            "model": result.get("model"),
+            "analysis": analysis,
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(500, str(e))
+
+
+@router.get("/{document_id}")
+async def get_analysis(document_id: str):
+    """Get the saved analysis for a document."""
+    res = supabase_admin.table("documents").select("id, name, metadata").eq("id", document_id).execute()
+    if not res.data:
+        raise HTTPException(404, "Document not found")
+    doc = res.data[0]
+    metadata = doc.get("metadata") or {}
     return {
         "status": "success",
         "document_id": document_id,
-        "total_chunks": len(chunks),
-        "extracted": entities,
+        "document_name": doc.get("name"),
+        "analysis": metadata.get("analysis"),
+        "analyzed_at": metadata.get("analyzed_at"),
     }

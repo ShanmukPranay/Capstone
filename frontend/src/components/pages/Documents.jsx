@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+﻿import React, { useState, useCallback, useEffect } from 'react';
 import { useDropzone } from 'react-dropzone';
 import {
   Upload,
@@ -41,7 +41,7 @@ const Documents = () => {
   const loadDocuments = async () => {
     setIsLoading(true);
     try {
-      const data = await api.getDocuments();
+      const data = await api.listDocuments();
       // Convert backend docs to frontend format
       const docs = data.documents.map(doc => ({
         id: doc.id,
@@ -84,14 +84,14 @@ const Documents = () => {
         };
         
         setUploadedFiles(prev => [newFile, ...prev]);
-        toast.success(`✅ ${file.name} uploaded successfully!`);
+        toast.success(`âœ… ${file.name} uploaded successfully!`);
         
         // Start processing
         startProcessing(result.document_id);
         
       } catch (error) {
         console.error('Upload error:', error);
-        toast.error(`❌ Failed to upload ${file.name}`);
+        toast.error(`âŒ Failed to upload ${file.name}`);
       }
     }
     setIsProcessing(false);
@@ -142,7 +142,7 @@ const Documents = () => {
               : f
           )
         );
-        toast.success('✅ Analysis complete!');
+        toast.success('âœ… Analysis complete!');
       }
     }, 1500);
   };
@@ -152,7 +152,7 @@ const Documents = () => {
     if (!file) return;
 
     if (file.status === 'analyzed') {
-      toast.success('📄 Document already analyzed!');
+      toast.success('ðŸ“„ Document already analyzed!');
       return;
     }
 
@@ -174,7 +174,7 @@ const Documents = () => {
       const data = await api.getDocument(id);
       setSelectedDocument(id);
       setDocumentDetails(data.document);
-      toast.info(`📄 Document details loaded`);
+      toast.info(`ðŸ“„ Document details loaded`);
     } catch (error) {
       toast.error('Failed to load document details');
     }
@@ -269,7 +269,7 @@ const Documents = () => {
                     {isComplete ? <CheckCircle size={14} /> : idx + 1}
                   </span>
                   <span className="step-label">{step}</span>
-                  {isComplete && <span className="step-check">✓</span>}
+                  {isComplete && <span className="step-check">âœ“</span>}
                 </div>
               );
             })}
@@ -282,7 +282,7 @@ const Documents = () => {
         <div className="file-list">
           <div className="file-list-header">
             <h3>Uploaded Documents</h3>
-            <span>{uploadedFiles.length} files • {uploadedFiles.reduce((sum, f) => sum + (f.totalChunks || 0), 0)} chunks</span>
+            <span>{uploadedFiles.length} files â€¢ {uploadedFiles.reduce((sum, f) => sum + (f.totalChunks || 0), 0)} chunks</span>
           </div>
           <div className="file-items">
             {uploadedFiles.map((file) => (
@@ -295,11 +295,11 @@ const Documents = () => {
                     <span className="file-name">{file.name}</span>
                     <div className="file-meta">
                       <span>{file.pages} pages</span>
-                      <span>•</span>
+                      <span>â€¢</span>
                       <span>{file.size} KB</span>
-                      <span>•</span>
+                      <span>â€¢</span>
                       <span>{file.totalChunks || 0} chunks</span>
-                      <span>•</span>
+                      <span>â€¢</span>
                       <span>Extracted Text: {file.extractedText}</span>
                     </div>
                   </div>

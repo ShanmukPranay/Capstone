@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Search,
   Send,
@@ -33,7 +33,7 @@ const RAGSearch = () => {
   const loadDocuments = async () => {
     setIsLoading(true);
     try {
-      const data = await api.listDocuments();
+      const data = await api.getDocuments();
       setDocuments(data.documents || []);
     } catch (error) {
       console.error('Error loading documents:', error);
@@ -213,7 +213,7 @@ const RAGSearch = () => {
                         <span className="chunk-doc">{chunk.document_name || 'Unknown'}</span>
                       </div>
                       <div className="chunk-meta">
-                        <span className="relevance-score">Score: {(chunk.similarity * 100).toFixed(1)}%</span>
+                        <span className="relevance-score">Score: {(chunk.score * 100).toFixed(1)}%</span>
                         {expandedChunks[idx] ? (
                           <ChevronDown size={16} />
                         ) : (
@@ -271,22 +271,22 @@ const RAGSearch = () => {
               <span className="step-num">1</span>
               <span className="step-label">USER QUERY</span>
             </div>
-            <div className="pipeline-arrow">â†’</div>
+            <div className="pipeline-arrow">→</div>
             <div className="pipeline-step active">
               <span className="step-num">2</span>
               <span className="step-label">RAG RETRIEVAL</span>
             </div>
-            <div className="pipeline-arrow">â†’</div>
+            <div className="pipeline-arrow">→</div>
             <div className="pipeline-step active">
               <span className="step-num">3</span>
               <span className="step-label">EVIDENCE</span>
             </div>
-            <div className="pipeline-arrow">â†’</div>
+            <div className="pipeline-arrow">→</div>
             <div className="pipeline-step active">
               <span className="step-num">4</span>
               <span className="step-label">LLM</span>
             </div>
-            <div className="pipeline-arrow">â†’</div>
+            <div className="pipeline-arrow">→</div>
             <div className="pipeline-step success">
               <CheckCircle size={18} className="step-check" />
               <span className="step-label">ANSWER</span>
@@ -301,7 +301,7 @@ const RAGSearch = () => {
           <h3>Search your legal documents</h3>
           <p>Ask a question and get AI-powered answers with evidence from your documents</p>
           <div className="empty-tips">
-            <span>ðŸ’¡ Try asking about:</span>
+            <span>💡 Try asking about:</span>
             <ul>
               <li>Termination clauses</li>
               <li>Party obligations</li>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import {
   Brain,
   FileText,
@@ -7,47 +7,108 @@ import {
   Link,
   ExternalLink,
   Sparkles,
-  ChevronRight,
   Shield,
-  Users
+  Play,
+  Loader2,
+  AlertTriangle
 } from 'lucide-react';
+import toast from 'react-hot-toast';
+import api from '../../services/api';
 import './AIAnalysis.css';
 
 const AIAnalysis = () => {
-  const [selectedDocument, setSelectedDocument] = useState('Employment_Agreement.pdf');
-  const [analysisResult, setAnalysisResult] = useState({
-    parties: {
-      employer: 'ABC Technologies Pvt. Ltd.',
-      employee: 'John Doe'
-    },
-    duration: {
-      start: '01/07/2026',
-      duration: '12 months'
-    },
-    noticePeriod: '30 days',
-    obligation: 'Employee must provide written notice before termination.'
-  });
+  const [documents, setDocuments] = useState([]);
+  const [selectedDocId, setSelectedDocId] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [currentStep, setCurrentStep] = useState(0);
+  const [analysis, setAnalysis] = useState(null);
+  const [documentContent, setDocumentContent] = useState('');
+  const [modelUsed, setModelUsed] = useState('');
 
-  const [evidence] = useState({
-    source: 'Page 5',
-    section: 'Section 8.2',
-    text: '"Employee shall provide written notice of termination at least thirty days prior to the intended termination date."',
-    confidence: 94
-  });
+  const processingSteps = [
+    'Fetching document',
+    'Text preprocessing',
+    'Running RAG retrieval',
+    'LLM analysis',
+    'Evidence mapping',
+    'Risk detection',
+  ];
 
-  const [highlightedText] = useState(
-    'The Employment Agreement (the "Agreement") is entered into between ABC Technologies Pvt. Ltd. ("Employer") and John Doe ("Employee"). The Employee shall provide written notice of termination at least thirty days prior to the intended termination date. The notice period shall commence on the date of receipt of such notice.'
-  );
+  // Load documents on mount
+  useEffect(() => {
+    loadDocuments();
+  }, []);
 
-  const [processingSteps] = useState([
-    { label: 'Document uploaded', status: 'complete' },
-    { label: 'Text extracted', status: 'complete' },
-    { label: 'Text preprocessing completed', status: 'complete' },
-    { label: 'Running RAG retrieval', status: 'complete' },
-    { label: 'LLM analysis', status: 'complete' },
-    { label: 'Evidence mapping', status: 'complete' },
-    { label: 'Risk detection', status: 'complete' },
-  ]);
+  const loadDocuments = async () => {
+    setIsLoading(true);
+    try {
+      const res = await api.listDocuments();
+      const docs = res.documents || [];
+      setDocuments(docs);
+      if (docs.length > 0) {
+        setSelectedDocId(docs[0].id);
+        setDocumentContent(docs[0].content?.slice(0, 2000) || '');
+      }
+    } catch (err) {
+      console.error('Failed to load documents:', err);
+      toast.error('Could not load documents');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleAnalyze = async () => {
+    if (!selectedDocId) {
+      toast.error('Please select a document');
+      return;
+    }
+
+    setIsAnalyzing(true);
+    setAnalysis(null);
+    setCurrentStep(0);
+
+    // Animate steps (visual feedback)
+    const stepInterval = setInterval(() => {
+      setCurrentStep(prev => {
+        if (prev < processingSteps.length - 1) return prev + 1;
+        return prev;
+      });
+    }, 1200);
+
+    try {
+      const res = await api.analyzeDocument(selectedDocId);
+      setAnalysis(res.analysis || {});
+      setModelUsed(res.model || 'unknown');
+
+      // Show document content for highlighting
+      const doc = documents.find(d => d.id === selectedDocId);
+      setDocumentContent(doc?.content?.slice(0, 2000) || '');
+
+      toast.success('Analysis complete!');
+      setCurrentStep(processingSteps.length - 1);
+    } catch (err) {
+      console.error('Analysis failed:', err);
+      toast.error('Analysis failed: ' + err.message);
+    } finally {
+      clearInterval(stepInterval);
+      setTimeout(() => setIsAnalyzing(false), 500);
+    }
+  };
+
+  const renderHighlightedText = (text) => {
+    if (!text) return null;
+    const keywords = ['notice', 'termination', 'confidentiality', 'obligations', 'period'];
+    return text.split(' ').map((word, idx) => {
+      const lower = word.toLowerCase();
+      const isHighlighted = keywords.some(k => lower.includes(k));
+      return (
+        <span key={idx} className={isHighlighted ? 'highlighted' : ''}>
+          {word}{' '}
+        </span>
+      );
+    });
+  };
 
   return (
     <div className="ai-analysis-page">
@@ -68,135 +129,241 @@ const AIAnalysis = () => {
         </div>
       </div>
 
-      {/* Processing Steps */}
-      <div className="processing-steps-bar">
-        {processingSteps.map((step, idx) => (
-          <div key={idx} className={`step ${step.status}`}>
-            {step.status === 'complete' ? <CheckCircle size={16} /> : <span className="step-num">{idx + 1}</span>}
-            <span className="step-label">{step.label}</span>
-          </div>
-        ))}
+      {/* Document Selector + Analyze Button */}
+      <div className="analysis-controls">
+        <label className="control-label">
+          <FileText size={16} />
+          Select Document:
+        </label>
+        <select
+          className="document-select"
+          value={selectedDocId}
+          onChange={(e) => {
+            setSelectedDocId(e.target.value);
+            const doc = documents.find(d => d.id === e.target.value);
+            setDocumentContent(doc?.content?.slice(0, 2000) || '');
+            setAnalysis(null);
+          }}
+          disabled={isLoading || isAnalyzing}
+        >
+          {documents.length === 0 ? (
+            <option value="">No documents available</option>
+          ) : (
+            documents.map(doc => (
+              <option key={doc.id} value={doc.id}>
+                {doc.name} ({doc.total_chunks || 0} chunks)
+              </option>
+            ))
+          )}
+        </select>
+        <button
+          className="btn-analyze"
+          onClick={handleAnalyze}
+          disabled={isAnalyzing || !selectedDocId}
+        >
+          {isAnalyzing ? (
+            <>
+              <Loader2 size={16} className="spin" />
+              Analyzing...
+            </>
+          ) : (
+            <>
+              <Play size={16} />
+              Analyze Document
+            </>
+          )}
+        </button>
       </div>
 
-      <div className="analysis-grid">
-        {/* Left Column - Document Viewer */}
-        <div className="document-viewer">
-          <div className="viewer-header">
-            <FileText size={18} />
-            <span>{selectedDocument}</span>
-          </div>
-          <div className="viewer-content">
-            <p className="document-text">
-              {highlightedText.split(' ').map((word, idx) => {
-                if (word.includes('notice') || word.includes('termination')) {
-                  return <span key={idx} className="highlighted">{word} </span>;
-                }
-                return <span key={idx}>{word} </span>;
-              })}
-            </p>
-            <div className="legend">
-              <span className="legend-item">
-                <span className="legend-color" style={{ background: '#fef3c7' }}></span>
-                Key Clauses
-              </span>
-              <span className="legend-item">
-                <span className="legend-color" style={{ background: '#dbeafe' }}></span>
-                Evidence Source
-              </span>
+      {/* Progress Bar (during analysis) */}
+      {isAnalyzing && (
+        <div className="processing-steps-bar">
+          {processingSteps.map((step, idx) => (
+            <div
+              key={idx}
+              className={`step ${idx < currentStep ? 'complete' : ''} ${idx === currentStep ? 'active' : ''}`}
+            >
+              {idx < currentStep ? (
+                <CheckCircle size={16} />
+              ) : idx === currentStep ? (
+                <Loader2 size={16} className="spin" />
+              ) : (
+                <span className="step-num">{idx + 1}</span>
+              )}
+              <span className="step-label">{step}</span>
             </div>
-          </div>
+          ))}
         </div>
+      )}
 
-        {/* Middle Column - AI Extraction Results */}
-        <div className="extraction-results">
-          <h3>Extracted Information</h3>
-          
-          <div className="extraction-card">
-            <h4>Parties</h4>
-            <div className="extraction-item">
-              <span className="label">Employer:</span>
-              <span className="value">{analysisResult.parties.employer}</span>
+      {/* Analysis Result */}
+      {analysis && !isAnalyzing && (
+        <>
+          {modelUsed && (
+            <div className="model-info">
+              ✅ Analysis complete · Model: <strong>{modelUsed}</strong>
             </div>
-            <div className="extraction-item">
-              <span className="label">Employee:</span>
-              <span className="value">{analysisResult.parties.employee}</span>
-            </div>
-          </div>
+          )}
 
-          <div className="extraction-card">
-            <h4>Contract Duration</h4>
-            <div className="extraction-item">
-              <span className="label">Start Date:</span>
-              <span className="value">{analysisResult.duration.start}</span>
-            </div>
-            <div className="extraction-item">
-              <span className="label">Duration:</span>
-              <span className="value">{analysisResult.duration.duration}</span>
-            </div>
-          </div>
-
-          <div className="extraction-card highlight-card">
-            <h4>Obligation</h4>
-            <div className="extraction-item">
-              <span className="label">Notice Period:</span>
-              <span className="value highlight-value">{analysisResult.noticePeriod}</span>
-            </div>
-            <div className="extraction-item">
-              <span className="label">Requirement:</span>
-              <span className="value">{analysisResult.obligation}</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Right Column - Evidence + Reasoning */}
-        <div className="evidence-panel">
-          <h3>Evidence & Reasoning</h3>
-          
-          <div className="evidence-card">
-            <div className="evidence-header">
-              <Shield size={18} className="evidence-icon" />
-              <span>Evidence Found</span>
-            </div>
-            
-            <div className="evidence-source">
-              <span className="source-label">Source:</span>
-              <span className="source-value">{evidence.source}</span>
-            </div>
-            <div className="evidence-source">
-              <span className="source-label">Section:</span>
-              <span className="source-value">{evidence.section}</span>
-            </div>
-            
-            <div className="evidence-text">
-              <span className="source-label">Evidence:</span>
-              <p>{evidence.text}</p>
-            </div>
-
-            <div className="evidence-confidence">
-              <span className="confidence-label">Confidence:</span>
-              <div className="confidence-bar">
-                <div className="confidence-fill" style={{ width: `${evidence.confidence}%` }}></div>
-                <span className="confidence-value">{evidence.confidence}%</span>
+          <div className="analysis-grid">
+            {/* Column 1: Document Viewer */}
+            <div className="document-viewer">
+              <div className="viewer-header">
+                <FileText size={18} />
+                <span>{documents.find(d => d.id === selectedDocId)?.name || 'Document'}</span>
+              </div>
+              <div className="viewer-content">
+                <p className="document-text">
+                  {renderHighlightedText(documentContent)}
+                </p>
+                <div className="legend">
+                  <span className="legend-item">
+                    <span className="legend-color" style={{ background: '#fef3c7' }}></span>
+                    Key Clauses
+                  </span>
+                </div>
               </div>
             </div>
 
-            <div className="evidence-reasoning">
-              <span className="source-label">Reasoning:</span>
-              <p>"The notice-period requirement is explicitly stated in Section 8.2 and is connected with the termination condition described in Section 9."</p>
+            {/* Column 2: Extracted Information */}
+            <div className="extraction-results">
+              <h3>Extracted Information</h3>
+
+              {analysis.parties && (
+                <div className="extraction-card">
+                  <h4>👥 Parties</h4>
+                  {Object.entries(analysis.parties).map(([key, val]) => {
+                    if (!val) return null;
+                    if (Array.isArray(val) && val.length === 0) return null;
+                    return (
+                      <div key={key} className="extraction-item">
+                        <span className="label">{key.replace(/_/g, ' ')}:</span>
+                        <span className="value">
+                          {Array.isArray(val) ? val.join(', ') : val}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {analysis.dates && Object.values(analysis.dates).some(v => v) && (
+                <div className="extraction-card">
+                  <h4>📅 Dates</h4>
+                  {Object.entries(analysis.dates).map(([key, val]) => {
+                    if (!val) return null;
+                    if (Array.isArray(val) && val.length === 0) return null;
+                    return (
+                      <div key={key} className="extraction-item">
+                        <span className="label">{key.replace(/_/g, ' ')}:</span>
+                        <span className="value">
+                          {Array.isArray(val) ? val.join(', ') : val}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {analysis.notice_period && (
+                <div className="extraction-card highlight-card">
+                  <h4>⏱️ Notice Period</h4>
+                  <div className="extraction-item">
+                    <span className="value highlight-value">{analysis.notice_period}</span>
+                  </div>
+                </div>
+              )}
+
+              {analysis.key_obligations && analysis.key_obligations.length > 0 && (
+                <div className="extraction-card">
+                  <h4>📋 Key Obligations</h4>
+                  <ul className="obligations-list">
+                    {analysis.key_obligations.map((ob, i) => (
+                      <li key={i}>{ob}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </div>
 
-            <button className="btn-view-source">
-              <ExternalLink size={16} />
-              View Source
-            </button>
-          </div>
+            {/* Column 3: Evidence & Risks */}
+            <div className="evidence-panel">
+              <h3>Evidence & Reasoning</h3>
 
-          <div className="verification-badge">
-            <CheckCircle size={16} />
-            <span>AI Analysis Complete</span>
+              {analysis.key_clauses && analysis.key_clauses.length > 0 && (
+                <div className="evidence-card">
+                  <div className="evidence-header">
+                    <Shield size={18} className="evidence-icon" />
+                    <span>Key Clauses</span>
+                  </div>
+                  {analysis.key_clauses.map((clause, i) => (
+                    <div key={i} className="clause-item">
+                      <div className="clause-name">{clause.name}</div>
+                      <div className="clause-text">{clause.text}</div>
+                      {clause.evidence && (
+                        <div className="clause-evidence">
+                          📎 {clause.evidence}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {analysis.risks && analysis.risks.length > 0 && (
+                <div className="evidence-card">
+                  <div className="evidence-header">
+                    <AlertTriangle size={18} className="evidence-icon" style={{ color: '#f59e0b' }} />
+                    <span>Detected Risks ({analysis.risks.length})</span>
+                  </div>
+                  {analysis.risks.map((risk, i) => (
+                    <div key={i} className={`risk-item risk-${risk.severity || 'medium'}`}>
+                      <div className="risk-header">
+                        <span className={`severity-badge severity-${risk.severity || 'medium'}`}>
+                          {(risk.severity || 'medium').toUpperCase()}
+                        </span>
+                      </div>
+                      <div className="risk-text">{risk.risk}</div>
+                      {risk.evidence && (
+                        <div className="risk-evidence">📎 {risk.evidence}</div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {(!analysis.key_clauses || analysis.key_clauses.length === 0) &&
+               (!analysis.risks || analysis.risks.length === 0) && (
+                <div className="evidence-card empty-evidence">
+                  <p>No clauses or risks detected in this document.</p>
+                </div>
+              )}
+
+              <div className="verification-badge">
+                <CheckCircle size={16} />
+                <span>AI Analysis Complete</span>
+              </div>
+            </div>
           </div>
+        </>
+      )}
+
+      {/* Empty state */}
+      {!analysis && !isAnalyzing && documents.length > 0 && (
+        <div className="empty-analysis-state">
+          <Brain size={48} />
+          <h3>Ready to Analyze</h3>
+          <p>Select a document above and click "Analyze Document" to extract parties, clauses, risks, and evidence.</p>
         </div>
-      </div>
+      )}
+
+      {documents.length === 0 && !isLoading && (
+        <div className="empty-analysis-state">
+          <FileText size={48} />
+          <h3>No Documents Yet</h3>
+          <p>Upload a document first from the Documents page.</p>
+        </div>
+      )}
     </div>
   );
 };

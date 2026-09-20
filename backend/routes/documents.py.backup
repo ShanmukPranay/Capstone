@@ -87,14 +87,3 @@ async def upload_document(
         }
     except Exception as e:
         raise HTTPException(500, str(e))
-
-
-@router.delete("/{document_id}")
-async def delete_document(document_id: str):
-    try:
-        # Delete chunks first (foreign key), then document
-        supabase_admin.table("document_chunks").delete().eq("document_id", document_id).execute()
-        supabase_admin.table("documents").delete().eq("id", document_id).execute()
-        return {"status": "success", "message": "Document deleted", "document_id": document_id}
-    except Exception as e:
-        raise HTTPException(500, str(e))
