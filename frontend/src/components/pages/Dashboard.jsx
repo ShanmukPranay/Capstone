@@ -670,5 +670,22 @@ const Dashboard = () => {
     </div>
   );
 };
+// Add this to Dashboard.jsx or any component
+const testConnection = async () => {
+  try {
+    const response = await fetch('http://localhost:8000/api/health');
+    const data = await response.json();
+    console.log('Backend is connected:', data);
+    alert('✅ Backend connected! ' + JSON.stringify(data));
+  } catch (error) {
+    console.error('Backend not connected:', error);
+    alert('❌ Backend not connected! Make sure backend is running on port 8000');
+  }
+};
+
+// Add a button
+<button onClick={testConnection} className="btn-primary">
+  Test Backend Connection
+</button>
 
 export default Dashboard;

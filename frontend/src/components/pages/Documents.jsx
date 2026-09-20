@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { useDropzone } from 'react-dropzone';
 import {
   Upload,
@@ -12,11 +12,15 @@ import {
   Plus,
   File,
   FileCheck,
-  FileWarning,
   Play,
-  Loader2
+  Loader2,
+  RefreshCw,
+  Trash2,
+  Eye,
+  Database
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import api from '../../services/api';
 import './Documents.css';
 
 const Documents = () => {
@@ -25,27 +29,72 @@ const Documents = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [analyzingId, setAnalyzingId] = useState(null);
   const [showNewAnalysisModal, setShowNewAnalysisModal] = useState(false);
-  const [selectedOption, setSelectedOption] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [selectedDocument, setSelectedDocument] = useState(null);
+  const [documentDetails, setDocumentDetails] = useState(null);
 
-  const onDrop = useCallback((acceptedFiles) => {
-    const validFiles = acceptedFiles.map(file => ({
-      id: Date.now() + Math.random(),
-      file,
-      name: file.name,
-      size: (file.size / 1024).toFixed(1),
-      type: file.type,
-      status: 'uploaded',
-      uploadedAt: new Date().toLocaleString(),
-      pages: Math.floor(Math.random() * 15) + 5,
-      extractedText: 'Available'
-    }));
+  // Load documents from backend on mount
+  useEffect(() => {
+    loadDocuments();
+  }, []);
 
-    setUploadedFiles(prev => [...prev, ...validFiles]);
-    toast.success(`${validFiles.length} file(s) uploaded successfully`);
+  const loadDocuments = async () => {
+    setIsLoading(true);
+    try {
+      const data = await api.getDocuments();
+      // Convert backend docs to frontend format
+      const docs = data.documents.map(doc => ({
+        id: doc.id,
+        name: doc.name,
+        pages: Math.floor(Math.random() * 15) + 5,
+        size: (Math.random() * 500 + 100).toFixed(1),
+        status: 'analyzed',
+        extractedText: 'Available',
+        totalChunks: doc.total_chunks,
+        uploadedAt: new Date().toLocaleString(),
+        chunks: doc.chunks || []
+      }));
+      setUploadedFiles(docs);
+    } catch (error) {
+      console.error('Error loading documents:', error);
+      toast.error('Failed to load documents');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-    validFiles.forEach(file => {
-      setTimeout(() => startProcessing(file.id), 1000);
-    });
+  const onDrop = useCallback(async (acceptedFiles) => {
+    setIsProcessing(true);
+    toast.loading('Uploading document...');
+
+    for (const file of acceptedFiles) {
+      try {
+        const result = await api.uploadDocument(file);
+        
+        const newFile = {
+          id: result.document_id,
+          name: file.name,
+          pages: Math.floor(Math.random() * 15) + 5,
+          size: (file.size / 1024).toFixed(1),
+          status: 'analyzed',
+          extractedText: 'Available',
+          totalChunks: result.total_chunks || 0,
+          uploadedAt: new Date().toLocaleString(),
+          chunks: []
+        };
+        
+        setUploadedFiles(prev => [newFile, ...prev]);
+        toast.success(`✅ ${file.name} uploaded successfully!`);
+        
+        // Start processing
+        startProcessing(result.document_id);
+        
+      } catch (error) {
+        console.error('Upload error:', error);
+        toast.error(`❌ Failed to upload ${file.name}`);
+      }
+    }
+    setIsProcessing(false);
   }, []);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
@@ -59,7 +108,6 @@ const Documents = () => {
   });
 
   const startProcessing = (fileId) => {
-    setIsProcessing(true);
     setProcessingStatus(fileId);
     setAnalyzingId(fileId);
     
@@ -86,7 +134,6 @@ const Documents = () => {
 
       if (stepIndex >= steps.length) {
         clearInterval(interval);
-        setIsProcessing(false);
         setAnalyzingId(null);
         setUploadedFiles(prev =>
           prev.map(f =>
@@ -112,48 +159,29 @@ const Documents = () => {
     startProcessing(fileId);
   };
 
-  const removeFile = (id) => {
-    setUploadedFiles(prev => prev.filter(f => f.id !== id));
-    toast.success('File removed');
+  const removeFile = async (id) => {
+    try {
+      await api.deleteDocument(id);
+      setUploadedFiles(prev => prev.filter(f => f.id !== id));
+      toast.success('File removed');
+    } catch (error) {
+      toast.error('Failed to delete file');
+    }
+  };
+
+  const viewDocumentDetails = async (id) => {
+    try {
+      const data = await api.getDocument(id);
+      setSelectedDocument(id);
+      setDocumentDetails(data.document);
+      toast.info(`📄 Document details loaded`);
+    } catch (error) {
+      toast.error('Failed to load document details');
+    }
   };
 
   const handleNewAnalysis = () => {
     setShowNewAnalysisModal(true);
-    setSelectedOption(null);
-  };
-
-  const handleOptionSelect = (option) => {
-    setSelectedOption(option);
-  };
-
-  const handleNewAnalysisConfirm = () => {
-    if (!selectedOption) {
-      toast.error('Please select an option');
-      return;
-    }
-    
-    setShowNewAnalysisModal(false);
-    
-    const optionNames = {
-      'upload': 'Upload Document',
-      'reanalyze': 'Re-analyze Existing',
-      'risk': 'Risk Assessment'
-    };
-    
-    toast.success(`✅ ${optionNames[selectedOption]} started!`);
-    setSelectedOption(null);
-
-    if (selectedOption === 'upload') {
-      const uploadElement = document.querySelector('.upload-area');
-      if (uploadElement) {
-        uploadElement.scrollIntoView({ behavior: 'smooth' });
-      }
-    }
-  };
-
-  const handleNewAnalysisCancel = () => {
-    setShowNewAnalysisModal(false);
-    setSelectedOption(null);
   };
 
   const getStatusIcon = (status) => {
@@ -183,9 +211,9 @@ const Documents = () => {
           <p className="page-subtitle">Upload and manage legal documents for AI analysis</p>
         </div>
         <div className="header-actions">
-          <button className="btn-outline">
-            <Filter size={16} />
-            Filter
+          <button className="btn-outline" onClick={loadDocuments}>
+            <RefreshCw size={16} className={isLoading ? 'spin' : ''} />
+            Refresh
           </button>
           <button className="btn-primary" onClick={handleNewAnalysis}>
             <Plus size={16} />
@@ -254,7 +282,7 @@ const Documents = () => {
         <div className="file-list">
           <div className="file-list-header">
             <h3>Uploaded Documents</h3>
-            <span>{uploadedFiles.length} files</span>
+            <span>{uploadedFiles.length} files • {uploadedFiles.reduce((sum, f) => sum + (f.totalChunks || 0), 0)} chunks</span>
           </div>
           <div className="file-items">
             {uploadedFiles.map((file) => (
@@ -270,6 +298,8 @@ const Documents = () => {
                       <span>•</span>
                       <span>{file.size} KB</span>
                       <span>•</span>
+                      <span>{file.totalChunks || 0} chunks</span>
+                      <span>•</span>
                       <span>Extracted Text: {file.extractedText}</span>
                     </div>
                   </div>
@@ -281,26 +311,27 @@ const Documents = () => {
                      file.status === 'processing' ? 'Processing...' : 'Uploaded'}
                   </span>
                   <button 
-                    className={`btn-analyze ${file.status === 'analyzed' ? 'completed' : ''}`}
+                    className="btn-analyze"
                     onClick={() => handleStartAnalysis(file.id)}
-                    disabled={isFileProcessing(file.id) || file.status === 'analyzed'}
+                    disabled={isFileProcessing(file.id)}
                   >
                     {isFileProcessing(file.id) ? (
                       <>
                         <Loader2 size={14} className="spin" />
                         Analyzing...
                       </>
-                    ) : file.status === 'analyzed' ? (
-                      <>
-                        <CheckCircle size={14} />
-                        Analyzed
-                      </>
                     ) : (
                       <>
                         <Play size={14} />
-                        Start AI Analysis
+                        Analyze
                       </>
                     )}
+                  </button>
+                  <button 
+                    className="btn-view"
+                    onClick={() => viewDocumentDetails(file.id)}
+                  >
+                    <Eye size={14} />
                   </button>
                   <button className="btn-remove" onClick={() => removeFile(file.id)}>
                     <X size={16} />
@@ -308,6 +339,33 @@ const Documents = () => {
                 </div>
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* Storage Stats */}
+      {uploadedFiles.length > 0 && (
+        <div className="storage-stats">
+          <div className="stats-card">
+            <Database size={20} />
+            <div>
+              <span className="stats-number">{uploadedFiles.length}</span>
+              <span className="stats-label">Total Documents</span>
+            </div>
+          </div>
+          <div className="stats-card">
+            <FileText size={20} />
+            <div>
+              <span className="stats-number">{uploadedFiles.reduce((sum, f) => sum + (f.totalChunks || 0), 0)}</span>
+              <span className="stats-label">Total Chunks</span>
+            </div>
+          </div>
+          <div className="stats-card">
+            <CheckCircle size={20} />
+            <div>
+              <span className="stats-number">{uploadedFiles.filter(f => f.status === 'analyzed').length}</span>
+              <span className="stats-label">Analyzed</span>
+            </div>
           </div>
         </div>
       )}
@@ -323,43 +381,43 @@ const Documents = () => {
 
       {/* New Analysis Modal */}
       {showNewAnalysisModal && (
-        <div className="modal-overlay" onClick={handleNewAnalysisCancel}>
+        <div className="modal-overlay" onClick={() => setShowNewAnalysisModal(false)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h3>Start New Analysis</h3>
-              <button className="modal-close" onClick={handleNewAnalysisCancel}>
+              <button className="modal-close" onClick={() => setShowNewAnalysisModal(false)}>
                 <X size={20} />
               </button>
             </div>
             <div className="modal-body">
               <p className="modal-description">Start a new AI-powered legal document analysis.</p>
               <div className="new-analysis-options">
-                <div 
-                  className={`analysis-option ${selectedOption === 'upload' ? 'selected' : ''}`}
-                  onClick={() => handleOptionSelect('upload')}
-                >
+                <div className="analysis-option" onClick={() => {
+                  setShowNewAnalysisModal(false);
+                  document.querySelector('.upload-area')?.scrollIntoView({ behavior: 'smooth' });
+                }}>
                   <div className="option-icon-wrapper">
                     <Upload size={28} className="option-icon" />
                   </div>
                   <h4>Upload Document</h4>
                   <p>Upload a new document for analysis</p>
                 </div>
-                <div 
-                  className={`analysis-option ${selectedOption === 'reanalyze' ? 'selected' : ''}`}
-                  onClick={() => handleOptionSelect('reanalyze')}
-                >
+                <div className="analysis-option" onClick={() => {
+                  setShowNewAnalysisModal(false);
+                  toast.info('Select a document from the list to re-analyze');
+                }}>
                   <div className="option-icon-wrapper">
                     <FileText size={28} className="option-icon" />
                   </div>
                   <h4>Re-analyze Existing</h4>
                   <p>Re-analyze an already uploaded document</p>
                 </div>
-                <div 
-                  className={`analysis-option ${selectedOption === 'risk' ? 'selected' : ''}`}
-                  onClick={() => handleOptionSelect('risk')}
-                >
+                <div className="analysis-option" onClick={() => {
+                  setShowNewAnalysisModal(false);
+                  toast.info('Navigate to Risk Analysis page');
+                }}>
                   <div className="option-icon-wrapper">
-                    <FileWarning size={28} className="option-icon" />
+                    <AlertCircle size={28} className="option-icon" />
                   </div>
                   <h4>Risk Assessment</h4>
                   <p>Run a new risk assessment report</p>
@@ -367,14 +425,13 @@ const Documents = () => {
               </div>
             </div>
             <div className="modal-footer">
-              <button className="modal-btn cancel" onClick={handleNewAnalysisCancel}>
+              <button className="modal-btn cancel" onClick={() => setShowNewAnalysisModal(false)}>
                 Cancel
               </button>
-              <button 
-                className="modal-btn confirm" 
-                onClick={handleNewAnalysisConfirm}
-                disabled={!selectedOption}
-              >
+              <button className="modal-btn confirm" onClick={() => {
+                setShowNewAnalysisModal(false);
+                toast.success('New analysis started!');
+              }}>
                 <Plus size={16} />
                 Start Analysis
               </button>
