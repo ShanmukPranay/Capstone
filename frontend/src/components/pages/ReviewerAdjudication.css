@@ -648,3 +648,165 @@
     display: none;
   }
 }
+/* ===== REVIEWER ADJUDICATION ===== */
+.reviewer-page { padding: 24px; max-width: 1200px; margin: 0 auto; }
+
+.reviewer-page .page-header {
+  display: flex; justify-content: space-between; align-items: flex-start;
+  margin-bottom: 24px; flex-wrap: wrap; gap: 16px;
+}
+.reviewer-page h1 { font-size: 26px; font-weight: 700; color: #0f172a; margin: 0 0 6px 0; }
+.reviewer-page .page-subtitle { font-size: 14px; color: #64748b; margin: 0; }
+
+.header-actions { display: flex; gap: 10px; }
+
+.btn-primary, .btn-secondary {
+  display: flex; align-items: center; gap: 6px;
+  padding: 10px 16px; border-radius: 10px;
+  font-size: 13px; font-weight: 600; cursor: pointer;
+  font-family: inherit; transition: all 0.2s;
+}
+.btn-primary { background: #6366f1; color: white; border: none; }
+.btn-primary:hover:not(:disabled) { background: #4f46e5; }
+.btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
+.btn-secondary { background: white; border: 1px solid #e2e8f0; color: #475569; }
+.btn-secondary:hover:not(:disabled) { border-color: #6366f1; color: #6366f1; }
+
+.review-summary {
+  display: grid; grid-template-columns: repeat(4, 1fr);
+  gap: 14px; margin-bottom: 20px;
+}
+.sum-card {
+  background: white; border: 1px solid #e2e8f0; border-radius: 12px;
+  padding: 16px; text-align: center;
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+}
+.sum-card.pending { color: #f59e0b; border-left: 4px solid #f59e0b; }
+.sum-card.approved { color: #22c55e; border-left: 4px solid #22c55e; }
+.sum-card.rejected { color: #ef4444; border-left: 4px solid #ef4444; }
+.sum-card.changes { color: #8b5cf6; border-left: 4px solid #8b5cf6; }
+.sum-card .num { font-size: 24px; font-weight: 700; color: #0f172a; line-height: 1; }
+.sum-card .lbl { font-size: 11px; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; }
+
+.filter-bar { display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; }
+.filter-btn {
+  padding: 6px 14px; background: #f1f5f9; border: 1px solid transparent;
+  border-radius: 20px; font-size: 12px; font-weight: 600;
+  color: #64748b; cursor: pointer; font-family: inherit;
+}
+.filter-btn:hover { background: #e2e8f0; }
+.filter-btn.active { background: #eef2ff; color: #4f46e5; border-color: #c7d2fe; }
+
+.reviews-list { display: flex; flex-direction: column; gap: 12px; }
+
+.review-card {
+  background: white; border: 1px solid #e2e8f0;
+  border-radius: 12px; overflow: hidden; transition: all 0.2s;
+}
+.review-card.status-pending { border-left: 4px solid #f59e0b; }
+.review-card.status-approved { border-left: 4px solid #22c55e; }
+.review-card.status-rejected { border-left: 4px solid #ef4444; }
+.review-card.status-needs_changes { border-left: 4px solid #8b5cf6; }
+
+.review-header {
+  display: flex; align-items: center; gap: 14px;
+  padding: 16px 18px; cursor: pointer;
+}
+
+.review-status-icon {
+  width: 36px; height: 36px; border-radius: 50%;
+  background: #f8fafc; display: flex; align-items: center; justify-content: center;
+  color: #64748b; flex-shrink: 0;
+}
+.status-pending .review-status-icon { background: #fef3c7; color: #92400e; }
+.status-approved .review-status-icon { background: #dcfce7; color: #166534; }
+.status-rejected .review-status-icon { background: #fee2e2; color: #991b1b; }
+.status-needs_changes .review-status-icon { background: #f3e8ff; color: #6b21a8; }
+
+.review-content { flex: 1; min-width: 0; }
+.review-title {
+  font-size: 14px; font-weight: 500; color: #0f172a;
+  margin-bottom: 6px; line-height: 1.4;
+  display: flex; align-items: flex-start; gap: 8px;
+}
+.sev-dot { width: 8px; height: 8px; border-radius: 50%; margin-top: 6px; flex-shrink: 0; }
+.sev-dot.sev-high { background: #ef4444; }
+.sev-dot.sev-medium { background: #f59e0b; }
+.sev-dot.sev-low { background: #22c55e; }
+
+.review-meta { display: flex; gap: 8px; font-size: 12px; color: #64748b; align-items: center; flex-wrap: wrap; }
+
+.status-badge {
+  padding: 2px 8px; border-radius: 4px;
+  font-size: 11px; font-weight: 700; text-transform: uppercase;
+}
+.status-badge.status-pending { background: #fef3c7; color: #92400e; }
+.status-badge.status-approved { background: #dcfce7; color: #166534; }
+.status-badge.status-rejected { background: #fee2e2; color: #991b1b; }
+.status-badge.status-needs_changes { background: #f3e8ff; color: #6b21a8; }
+
+.sev-label { font-weight: 700; font-size: 11px; }
+.sev-label.sev-high { color: #ef4444; }
+.sev-label.sev-medium { color: #f59e0b; }
+.sev-label.sev-low { color: #22c55e; }
+
+.review-toggle { color: #94a3b8; }
+
+.review-body {
+  padding: 0 18px 18px 68px;
+  border-top: 1px solid #f1f5f9;
+  padding-top: 16px;
+  background: #fafbfc;
+}
+.review-row { margin-bottom: 12px; font-size: 13px; }
+.review-row strong {
+  display: block; font-size: 11px; color: #64748b;
+  text-transform: uppercase; letter-spacing: 0.05em;
+  margin-bottom: 4px;
+}
+.review-row p { margin: 0; line-height: 1.6; color: #334155; }
+.review-row code { background: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-size: 12px; color: #4f46e5; }
+.review-row .excerpt {
+  padding: 10px 14px; background: #ffffff;
+  border-left: 3px solid #6366f1; border-radius: 4px;
+  font-style: italic; font-size: 12.5px;
+}
+
+.review-comment-row { margin-bottom: 12px; }
+.review-comment-row textarea {
+  width: 100%; padding: 10px 12px;
+  border: 1px solid #e2e8f0; border-radius: 8px;
+  font-size: 13px; font-family: inherit; resize: vertical;
+  outline: none;
+}
+.review-comment-row textarea:focus { border-color: #6366f1; }
+
+.review-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+.btn-approve, .btn-reject, .btn-changes {
+  display: flex; align-items: center; gap: 6px;
+  padding: 8px 14px; border-radius: 8px;
+  font-size: 12px; font-weight: 600; cursor: pointer;
+  font-family: inherit; border: 1px solid; transition: all 0.2s;
+}
+.btn-approve { background: #ecfdf5; border-color: #a7f3d0; color: #047857; }
+.btn-approve:hover { background: #d1fae5; }
+.btn-reject { background: #fef2f2; border-color: #fecaca; color: #991b1b; }
+.btn-reject:hover { background: #fee2e2; }
+.btn-changes { background: #f3e8ff; border-color: #ddd6fe; color: #6b21a8; }
+.btn-changes:hover { background: #ede9fe; }
+
+.loading-state, .empty-state {
+  display: flex; flex-direction: column; align-items: center;
+  padding: 60px 20px; text-align: center; color: #94a3b8;
+}
+.loading-state svg, .empty-state svg { color: #cbd5e1; margin-bottom: 16px; }
+.empty-state h3 { font-size: 18px; color: #475569; margin: 0 0 8px 0; }
+.empty-state p { font-size: 14px; margin: 0; }
+
+.spin { animation: spin 1s linear infinite; }
+@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+@media (max-width: 700px) {
+  .review-summary { grid-template-columns: repeat(2, 1fr); }
+}

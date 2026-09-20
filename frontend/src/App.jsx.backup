@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import Sidebar from './components/layout/Sidebar';
@@ -19,37 +19,29 @@ import ChatBot from './components/common/ChatBot';
 import './App.css';
 
 function App() {
-  const [currentUser, setCurrentUser] = useState(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Restore session from localStorage
-    try {
-      const stored = localStorage.getItem('currentUser');
-      const token = localStorage.getItem('authToken');
-      if (token && stored) {
-        setCurrentUser(JSON.parse(stored));
-      }
-    } catch (err) {
-      console.error('Failed to restore session:', err);
+    const token = localStorage.getItem('authToken');
+    if (token) {
+      setIsAuthenticated(true);
     }
-    setTimeout(() => setIsLoading(false), 800);
+    setTimeout(() => {
+      setIsLoading(false);
+    }, 1500);
   }, []);
 
-  const handleLogin = (userData) => {
-    setCurrentUser(userData);
+  const handleLogin = () => {
     localStorage.setItem('authToken', 'user_logged_in');
-    localStorage.setItem('currentUser', JSON.stringify(userData));
+    setIsAuthenticated(true);
   };
 
   const handleLogout = () => {
-    setCurrentUser(null);
     localStorage.removeItem('authToken');
-    localStorage.removeItem('currentUser');
+    setIsAuthenticated(false);
   };
-
-  const isAuthenticated = !!currentUser;
 
   if (isLoading) {
     return (
@@ -84,11 +76,7 @@ function App() {
       <div className="app-container">
         <Sidebar isOpen={sidebarOpen} setIsOpen={setSidebarOpen} />
         <div className={`main-content ${sidebarOpen ? 'sidebar-open' : 'sidebar-closed'}`}>
-          <Header
-            toggleSidebar={() => setSidebarOpen(!sidebarOpen)}
-            onLogout={handleLogout}
-            user={currentUser}
-          />
+          <Header toggleSidebar={() => setSidebarOpen(!sidebarOpen)} onLogout={handleLogout} />
           <div className="page-content">
             <Routes>
               <Route path="/" element={<Dashboard />} />

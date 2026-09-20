@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 
 from config import PORT
-from routes import documents, rag, chat, analysis, evidence, analytics
+from routes import documents, rag, chat, analysis, evidence, analytics, risks, reviews, history, notifications, auth
 
 app = FastAPI(
     title="Evidence-Traceable Legal Intelligence API",
@@ -35,6 +35,11 @@ app.include_router(chat.router)
 app.include_router(analysis.router)
 app.include_router(evidence.router)
 app.include_router(analytics.router)
+app.include_router(risks.router)
+app.include_router(reviews.router)
+app.include_router(history.router)
+app.include_router(notifications.router)
+app.include_router(auth.router)
 
 
 if __name__ == "__main__":

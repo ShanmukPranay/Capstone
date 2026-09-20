@@ -1,6 +1,19 @@
 ﻿// Frontend API client for FastAPI backend
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
+// ===== Get current user ID from localStorage =====
+function getCurrentUserId() {
+  try {
+    const stored = localStorage.getItem('currentUser');
+    if (stored) {
+      const user = JSON.parse(stored);
+      if (user && user.id) return user.id;
+      if (user && user.email) return user.email;
+    }
+  } catch { /* ignore */ }
+  return 'default-user';
+}
+
 async function request(path, options = {}) {
   const res = await fetch(`${API_BASE}${path}`, {
     headers: {
@@ -18,14 +31,38 @@ async function request(path, options = {}) {
 
 // ===== Documents =====
 export const api = {
+  // ---- Auth ----
+  signup: (email, password, fullName = null, organization = null) =>
+    request("/api/auth/signup", {
+      method: "POST",
+      body: JSON.stringify({ 
+        email, 
+        password, 
+        full_name: fullName, 
+        organization 
+      }),
+    }),
+
+  login: (email, password) =>
+    request("/api/auth/login", {
+      method: "POST",
+      body: JSON.stringify({ email, password }),
+    }),
+
+  getMe: (userId) =>
+    request(`/api/auth/me/` + userId),
+
+  listUsers: () =>
+    request("/api/auth/users"),
+
   // ---- Documents ----
-  listDocuments: (userId = "default-user") =>
+  listDocuments: (userId = getCurrentUserId()) =>
     request(`/api/documents?user_id=${userId}`),
 
   getDocument: (docId) =>
     request(`/api/documents/${docId}`),
 
-  uploadDocument: async (file, userId = "default-user") => {
+  uploadDocument: async (file, userId = getCurrentUserId()) => {
     const form = new FormData();
     form.append("file", file);
     form.append("user_id", userId);
@@ -82,7 +119,7 @@ export const api = {
     request(`/api/documents/` + docId, { method: "DELETE" }),
 
   // ---- Evidence ----
-  getAllEvidence: (userId = "default-user") =>
+  getAllEvidence: (userId = getCurrentUserId()) =>
     request(`/api/evidence/all?user_id=` + userId),
 
   getDocumentEvidence: (docId) =>
@@ -92,8 +129,47 @@ export const api = {
   analyzeDocument: (docId) =>
     request(`/api/analyze/${docId}`, { method: "POST" }),
 
+  // ---- Notifications ----
+  getNotifications: (userId = getCurrentUserId()) =>
+    request(`/api/notifications/all?user_id=` + userId),
+
+  // ---- History ----
+  getHistory: (userId = getCurrentUserId()) =>
+    request(`/api/history/all?user_id=` + userId),
+
+  // ---- Reviews ----
+  getReviews: (userId = getCurrentUserId()) =>
+    request(`/api/reviews/all?user_id=` + userId),
+
+  assignReview: (riskId, documentId, userId = getCurrentUserId()) =>
+    request(`/api/reviews/assign`, {
+      method: "POST",
+      body: JSON.stringify({
+        risk_id: riskId,
+        document_id: documentId,
+        reviewer_id: userId,
+        priority: "normal",
+      }),
+    }),
+
+  assignAllReviews: (userId = getCurrentUserId()) =>
+    request(`/api/reviews/assign-all?user_id=` + userId, { method: "POST" }),
+
+  updateReview: (reviewId, status, decision, comments) =>
+    request(`/api/reviews/` + reviewId, {
+      method: "PATCH",
+      body: JSON.stringify({ status, decision, comments }),
+    }),
+
+  // ---- Risks ----
+  getRisks: (userId = getCurrentUserId()) =>
+    request(`/api/risks/all?user_id=` + userId),
+
+  resolveRisk: (riskId) =>
+    request(`/api/risks/` + riskId + `/resolve`, { method: "PATCH" }),
+
   // ---- Analytics ----
-  getAnalytics: (userId = "default-user") =>
+  getAnalytics: (userId = getCurrentUserId()) =>
     request(`/api/analytics/overview?user_id=` + userId),
 
   // ---- Health ----

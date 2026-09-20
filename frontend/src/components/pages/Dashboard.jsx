@@ -45,12 +45,38 @@ const Dashboard = () => {
   useEffect(() => {
     const load = async () => {
       try {
-        const res = await api.listDocuments();
-        const docs = res.documents || [];
+        // Fetch documents + analytics in parallel
+        const [docsRes, analyticsRes] = await Promise.all([
+          api.listDocuments(),
+          api.getAnalytics(),
+        ]);
+        const docs = docsRes.documents || [];
 
         const totalDocs = docs.length;
         const analyzedDocs = docs.filter(d => d.status === 'analyzed').length;
         const totalChunks = docs.reduce((s, d) => s + (d.total_chunks || 0), 0);
+
+        // ===== Wire charts to real analytics data =====
+        const trend = analyticsRes.monthly_trend || [];
+        setChartData(trend.length > 0 ? trend : [
+          { month: 'Oct', documents: 0, analyzed: 0 },
+          { month: 'Nov', documents: 0, analyzed: 0 },
+          { month: 'Dec', documents: 0, analyzed: 0 },
+          { month: 'Jan', documents: 0, analyzed: 0 },
+        ]);
+
+        const severity = analyticsRes.by_severity || [];
+        const hasRisks = severity.some(s => s.value > 0);
+        setRiskData(
+          hasRisks
+            ? severity.filter(s => s.value > 0).map(s => ({
+                name: s.name,
+                value: s.value,
+                color: s.color || '#94a3b8',
+              }))
+            : [{ name: 'No risks', value: 1, color: '#e2e8f0' }]
+        );
+        // ===== END charts =====
 
         setStats([
           { label: 'Total Documents', value: String(totalDocs), icon: FileText, color: '#4f46e5', change: 'All time' },

@@ -1,385 +1,240 @@
-import React, { useState } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import {
-  Users,
-  CheckCircle,
-  XCircle,
-  Edit,
-  Clock,
-  FileText,
-  Shield,
-  ChevronDown,
-  ChevronRight,
-  AlertCircle,
-  Send,
-  Eye,
-  Filter,
-  Search
+  CheckCircle, XCircle, Clock, AlertCircle, RefreshCw,
+  Loader2, ChevronDown, ChevronRight, Shield, Plus
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import api from '../../services/api';
 import './ReviewerAdjudication.css';
 
 const ReviewerAdjudication = () => {
-  const [expandedItems, setExpandedItems] = useState({});
-  const [reviewStatus, setReviewStatus] = useState({});
+  const [reviews, setReviews] = useState([]);
+  const [summary, setSummary] = useState({ total: 0, pending: 0, approved: 0, rejected: 0, needs_changes: 0 });
+  const [isLoading, setIsLoading] = useState(true);
+  const [statusFilter, setStatusFilter] = useState('pending');
+  const [expandedId, setExpandedId] = useState(null);
   const [comments, setComments] = useState({});
-  const [showFilter, setShowFilter] = useState(false);
-  const [filterStatus, setFilterStatus] = useState('all');
+  const [isAssigning, setIsAssigning] = useState(false);
 
-  const [reviewItems] = useState([
-    {
-      id: 'R001',
-      finding: 'Contract contains a 30-day termination notice requirement.',
-      evidence: 'Page 5 — Section 8.2',
-      confidence: 94,
-      status: 'pending',
-      document: 'Employment_Agreement.pdf',
-      category: 'Termination'
-    },
-    {
-      id: 'R002',
-      finding: 'Non-compete clause applies for 12 months after termination.',
-      evidence: 'Page 8 — Section 11.3',
-      confidence: 82,
-      status: 'pending',
-      document: 'Employment_Agreement.pdf',
-      category: 'Non-Compete'
-    },
-    {
-      id: 'R003',
-      finding: 'Confidentiality obligation extends indefinitely.',
-      evidence: 'Page 6 — Section 7.1',
-      confidence: 91,
-      status: 'reviewed',
-      document: 'NDA_Agreement.pdf',
-      category: 'Confidentiality'
-    },
-    {
-      id: 'R004',
-      finding: 'Governing law is the State of California.',
-      evidence: 'Page 12 — Section 15.2',
-      confidence: 97,
-      status: 'pending',
-      document: 'Service_Contract.pdf',
-      category: 'Jurisdiction'
-    },
-    {
-      id: 'R005',
-      finding: 'Dispute resolution requires arbitration.',
-      evidence: 'Page 10 — Section 13.1',
-      confidence: 78,
-      status: 'pending',
-      document: 'Partnership_Agreement.pdf',
-      category: 'Dispute Resolution'
+  useEffect(() => { loadReviews(); }, []);
+
+  const loadReviews = async () => {
+    setIsLoading(true);
+    try {
+      const res = await api.getReviews();
+      setReviews(res.reviews || []);
+      setSummary(res.summary || { total: 0, pending: 0, approved: 0, rejected: 0, needs_changes: 0 });
+    } catch (err) {
+      console.error('Reviews load failed:', err);
+      toast.error('Could not load reviews');
+    } finally {
+      setIsLoading(false);
     }
-  ]);
-
-  const toggleItem = (id) => {
-    setExpandedItems(prev => ({
-      ...prev,
-      [id]: !prev[id]
-    }));
   };
 
-  const handleReview = (id, action) => {
-    setReviewStatus(prev => ({
-      ...prev,
-      [id]: action
-    }));
-    toast.success(`Review ${action} for ${id}`);
-  };
-
-  const handleCommentChange = (id, value) => {
-    setComments(prev => ({
-      ...prev,
-      [id]: value
-    }));
-  };
-
-  const handleSubmitReview = (id) => {
-    if (!reviewStatus[id]) {
-      toast.error('Please select Accept, Modify, or Reject first');
-      return;
+  const handleAssignAll = async () => {
+    setIsAssigning(true);
+    try {
+      const res = await api.assignAllReviews();
+      toast.success(`Assigned ${res.assigned} risks for review`);
+      await loadReviews();
+    } catch (err) {
+      toast.error('Could not assign reviews');
+    } finally {
+      setIsAssigning(false);
     }
-
-    const statusMap = {
-      'accepted': '✅ Accepted',
-      'modified': '✏️ Modified',
-      'rejected': '❌ Rejected'
-    };
-
-    toast.success(`${statusMap[reviewStatus[id]]} - Review submitted for ${id}`);
   };
 
-  const handleViewEvidence = (id) => {
-    const item = reviewItems.find(i => i.id === id);
-    toast.info(`📄 Evidence: ${item?.evidence || 'Not found'}`);
+  const handleDecision = async (reviewId, status) => {
+    try {
+      await api.updateReview(reviewId, status, status, comments[reviewId] || '');
+      toast.success(`Review ${status}`);
+      setComments(prev => ({ ...prev, [reviewId]: '' }));
+      await loadReviews();
+    } catch (err) {
+      toast.error('Could not update review');
+    }
   };
 
-  const getStatusBadge = (status) => {
-    const statusMap = {
-      'pending': <span className="status-badge pending"><Clock size={14} /> Pending Review</span>,
-      'reviewed': <span className="status-badge reviewed"><CheckCircle size={14} /> Reviewed</span>,
-      'verified': <span className="status-badge verified"><CheckCircle size={14} /> Verified</span>
-    };
-    return statusMap[status] || statusMap.pending;
+  const filteredReviews = statusFilter === 'all'
+    ? reviews
+    : reviews.filter(r => r.status === statusFilter);
+
+  const getStatusIcon = (status) => {
+    switch (status) {
+      case 'approved': return <CheckCircle size={16} />;
+      case 'rejected': return <XCircle size={16} />;
+      case 'needs_changes': return <AlertCircle size={16} />;
+      default: return <Clock size={16} />;
+    }
   };
-
-  const getReviewStatusBadge = (status) => {
-    const statusMap = {
-      'accepted': <span className="review-badge accepted">✅ Accepted</span>,
-      'modified': <span className="review-badge modified">✏️ Modified</span>,
-      'rejected': <span className="review-badge rejected">❌ Rejected</span>
-    };
-    return statusMap[status] || null;
-  };
-
-  const pendingCount = reviewItems.filter(item => 
-    item.status === 'pending' || !reviewStatus[item.id]
-  ).length;
-
-  const verifiedCount = reviewItems.filter(item => 
-    reviewStatus[item.id] === 'accepted' || item.status === 'verified'
-  ).length;
-
-  // Filter items
-  const getFilteredItems = () => {
-    if (filterStatus === 'all') return reviewItems;
-    return reviewItems.filter(item => {
-      if (filterStatus === 'pending') {
-        return item.status === 'pending' || !reviewStatus[item.id];
-      }
-      if (filterStatus === 'reviewed') {
-        return item.status === 'reviewed' || reviewStatus[item.id];
-      }
-      if (filterStatus === 'verified') {
-        return reviewStatus[item.id] === 'accepted' || item.status === 'verified';
-      }
-      return true;
-    });
-  };
-
-  const filteredItems = getFilteredItems();
 
   return (
     <div className="reviewer-page">
       <div className="page-header">
         <div>
           <h1>Reviewer Adjudication</h1>
-          <p className="page-subtitle">Human-in-the-loop verification of AI-generated findings</p>
+          <p className="page-subtitle">Human-in-the-loop verification of AI-detected risks</p>
         </div>
-        <div className="header-stats">
-          <div className="stat-item">
-            <span className="stat-number">{pendingCount}</span>
-            <span className="stat-label">Pending Review</span>
-          </div>
-          <div className="stat-item">
-            <span className="stat-number">{verifiedCount}</span>
-            <span className="stat-label">Verified</span>
-          </div>
+        <div className="header-actions">
+          <button className="btn-secondary" onClick={loadReviews} disabled={isLoading}>
+            <RefreshCw size={14} className={isLoading ? 'spin' : ''} />
+            Refresh
+          </button>
+          <button className="btn-primary" onClick={handleAssignAll} disabled={isAssigning}>
+            <Plus size={14} />
+            Assign All Risks
+          </button>
         </div>
       </div>
 
-      {/* Filter Bar */}
+      <div className="review-summary">
+        <div className="sum-card pending">
+          <Clock size={20} />
+          <span className="num">{summary.pending}</span>
+          <span className="lbl">Pending</span>
+        </div>
+        <div className="sum-card approved">
+          <CheckCircle size={20} />
+          <span className="num">{summary.approved}</span>
+          <span className="lbl">Approved</span>
+        </div>
+        <div className="sum-card rejected">
+          <XCircle size={20} />
+          <span className="num">{summary.rejected}</span>
+          <span className="lbl">Rejected</span>
+        </div>
+        <div className="sum-card changes">
+          <AlertCircle size={20} />
+          <span className="num">{summary.needs_changes}</span>
+          <span className="lbl">Needs Changes</span>
+        </div>
+      </div>
+
       <div className="filter-bar">
-        <div className="filter-group">
-          <button 
-            className={`filter-btn ${filterStatus === 'all' ? 'active' : ''}`}
-            onClick={() => setFilterStatus('all')}
+        {['pending', 'approved', 'rejected', 'needs_changes', 'all'].map(f => (
+          <button
+            key={f}
+            className={`filter-btn ${statusFilter === f ? 'active' : ''}`}
+            onClick={() => setStatusFilter(f)}
           >
-            All
+            {f.replace('_', ' ').toUpperCase()}
           </button>
-          <button 
-            className={`filter-btn ${filterStatus === 'pending' ? 'active' : ''}`}
-            onClick={() => setFilterStatus('pending')}
-          >
-            <Clock size={14} />
-            Pending
-          </button>
-          <button 
-            className={`filter-btn ${filterStatus === 'reviewed' ? 'active' : ''}`}
-            onClick={() => setFilterStatus('reviewed')}
-          >
-            <CheckCircle size={14} />
-            Reviewed
-          </button>
-          <button 
-            className={`filter-btn ${filterStatus === 'verified' ? 'active' : ''}`}
-            onClick={() => setFilterStatus('verified')}
-          >
-            <Shield size={14} />
-            Verified
-          </button>
-        </div>
-        <div className="search-filter">
-          <Search size={16} />
-          <input type="text" placeholder="Search findings..." />
-        </div>
+        ))}
       </div>
 
-      {/* Review Workflow */}
-      <div className="workflow-bar">
-        <div className="workflow-step active">
-          <span className="step-num">1</span>
-          <span className="step-label">AI Result</span>
+      {isLoading && (
+        <div className="loading-state">
+          <Loader2 size={32} className="spin" />
+          <p>Loading reviews...</p>
         </div>
-        <div className="workflow-arrow">→</div>
-        <div className="workflow-step active">
-          <span className="step-num">2</span>
-          <span className="step-label">Evidence</span>
-        </div>
-        <div className="workflow-arrow">→</div>
-        <div className="workflow-step active">
-          <span className="step-num">3</span>
-          <span className="step-label">Reviewer Decision</span>
-        </div>
-        <div className="workflow-arrow">→</div>
-        <div className="workflow-step">
-          <span className="step-num">4</span>
-          <span className="step-label">Verified Result</span>
-        </div>
-      </div>
+      )}
 
-      {/* Review Items */}
-      <div className="review-items">
-        {filteredItems.length === 0 ? (
-          <div className="empty-state">
-            <CheckCircle size={48} className="empty-icon" />
-            <h3>No items to review</h3>
-            <p>All items have been reviewed</p>
-          </div>
-        ) : (
-          filteredItems.map((item) => (
-            <div key={item.id} className={`review-card ${reviewStatus[item.id] || item.status}`}>
-              <button className="review-header" onClick={() => toggleItem(item.id)}>
-                <div className="review-left">
-                  <span className="review-id">#{item.id}</span>
-                  <span className="review-finding">{item.finding}</span>
-                </div>
-                <div className="review-right">
-                  {getStatusBadge(reviewStatus[item.id] || item.status)}
-                  {reviewStatus[item.id] && getReviewStatusBadge(reviewStatus[item.id])}
-                  <span className="review-confidence">{item.confidence}% confidence</span>
-                  {expandedItems[item.id] ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
-                </div>
-              </button>
+      {!isLoading && filteredReviews.length === 0 && (
+        <div className="empty-state">
+          <Shield size={48} />
+          <h3>No Reviews Yet</h3>
+          <p>
+            {reviews.length === 0
+              ? 'Click "Assign All Risks" to send AI-detected risks for review.'
+              : 'No reviews match the current filter.'}
+          </p>
+        </div>
+      )}
 
-              {expandedItems[item.id] && (
-                <div className="review-details">
-                  <div className="detail-grid">
-                    <div className="detail-item">
-                      <span className="detail-label">Document:</span>
-                      <span className="detail-value">
-                        <FileText size={14} />
-                        {item.document}
+      {!isLoading && filteredReviews.length > 0 && (
+        <div className="reviews-list">
+          {filteredReviews.map(r => {
+            const expanded = expandedId === r.id;
+            return (
+              <div key={r.id} className={`review-card status-${r.status}`}>
+                <div className="review-header" onClick={() => setExpandedId(expanded ? null : r.id)}>
+                  <div className="review-status-icon">{getStatusIcon(r.status)}</div>
+                  <div className="review-content">
+                    <div className="review-title">
+                      <span className={`sev-dot sev-${r.severity}`}></span>
+                      {r.risk?.slice(0, 120) || 'Risk not found'}
+                      {r.risk?.length > 120 ? '...' : ''}
+                    </div>
+                    <div className="review-meta">
+                      <span>📄 {r.document_name}</span>
+                      <span>·</span>
+                      <span className={`status-badge status-${r.status}`}>
+                        {r.status.replace('_', ' ')}
                       </span>
-                    </div>
-                    <div className="detail-item">
-                      <span className="detail-label">Evidence:</span>
-                      <span className="detail-value">{item.evidence}</span>
-                    </div>
-                    <div className="detail-item">
-                      <span className="detail-label">Category:</span>
-                      <span className="detail-value category-tag">{item.category}</span>
-                    </div>
-                    <div className="detail-item">
-                      <span className="detail-label">AI Confidence:</span>
-                      <div className="confidence-bar">
-                        <div className="confidence-fill" style={{ width: `${item.confidence}%` }}></div>
-                        <span className="confidence-value">{item.confidence}%</span>
-                      </div>
+                      {r.severity && (
+                        <>
+                          <span>·</span>
+                          <span className={`sev-label sev-${r.severity}`}>
+                            {r.severity.toUpperCase()}
+                          </span>
+                        </>
+                      )}
                     </div>
                   </div>
-
-                  <div className="review-actions">
-                    <div className="action-buttons">
-                      <button 
-                        className={`btn-accept ${reviewStatus[item.id] === 'accepted' ? 'active' : ''}`}
-                        onClick={() => handleReview(item.id, 'accepted')}
-                      >
-                        <CheckCircle size={16} />
-                        Accept
-                      </button>
-                      <button 
-                        className={`btn-modify ${reviewStatus[item.id] === 'modified' ? 'active' : ''}`}
-                        onClick={() => handleReview(item.id, 'modified')}
-                      >
-                        <Edit size={16} />
-                        Modify
-                      </button>
-                      <button 
-                        className={`btn-reject ${reviewStatus[item.id] === 'rejected' ? 'active' : ''}`}
-                        onClick={() => handleReview(item.id, 'rejected')}
-                      >
-                        <XCircle size={16} />
-                        Reject
-                      </button>
-                    </div>
-
-                    <div className="comment-section">
-                      <div className="comment-input-wrapper">
-                        <textarea
-                          placeholder="Add reviewer comment..."
-                          value={comments[item.id] || ''}
-                          onChange={(e) => handleCommentChange(item.id, e.target.value)}
-                          className="comment-input"
-                          rows="2"
-                        />
-                      </div>
-                      <button 
-                        className="btn-submit-review"
-                        onClick={() => handleSubmitReview(item.id)}
-                        disabled={!reviewStatus[item.id]}
-                      >
-                        <Send size={16} />
-                        Submit Review
-                      </button>
-                    </div>
+                  <div className="review-toggle">
+                    {expanded ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
                   </div>
-
-                  {reviewStatus[item.id] && (
-                    <div className="review-result">
-                      <Shield size={16} />
-                      <span>
-                        {reviewStatus[item.id] === 'accepted' && '✅ Finding accepted. Ready for verification.'}
-                        {reviewStatus[item.id] === 'modified' && '✏️ Finding requires modification. Please provide updated text.'}
-                        {reviewStatus[item.id] === 'rejected' && '❌ Finding rejected. Please provide rationale.'}
-                      </span>
-                    </div>
-                  )}
                 </div>
-              )}
-            </div>
-          ))
-        )}
-      </div>
 
-      {/* Verification Summary */}
-      <div className="verification-summary">
-        <div className="summary-header">
-          <h3>Verification Flow</h3>
+                {expanded && (
+                  <div className="review-body">
+                    <div className="review-row">
+                      <strong>Risk Description:</strong>
+                      <p>{r.risk}</p>
+                    </div>
+                    {r.evidence && (
+                      <div className="review-row">
+                        <strong>Evidence from Document:</strong>
+                        <p className="excerpt">{r.evidence}</p>
+                      </div>
+                    )}
+                    <div className="review-row">
+                      <strong>Document ID:</strong>
+                      <code>{r.document_id}</code>
+                    </div>
+                    <div className="review-row">
+                      <strong>Assigned At:</strong>
+                      <span>{new Date(r.created_at).toLocaleString()}</span>
+                    </div>
+
+                    {r.status === 'pending' && (
+                      <>
+                        <div className="review-comment-row">
+                          <textarea
+                            placeholder="Add comments (optional)..."
+                            value={comments[r.id] || ''}
+                            onChange={(e) => setComments(prev => ({ ...prev, [r.id]: e.target.value }))}
+                            rows={2}
+                          />
+                        </div>
+                        <div className="review-actions">
+                          <button className="btn-approve" onClick={() => handleDecision(r.id, 'approved')}>
+                            <CheckCircle size={14} /> Approve
+                          </button>
+                          <button className="btn-reject" onClick={() => handleDecision(r.id, 'rejected')}>
+                            <XCircle size={14} /> Reject
+                          </button>
+                          <button className="btn-changes" onClick={() => handleDecision(r.id, 'needs_changes')}>
+                            <AlertCircle size={14} /> Request Changes
+                          </button>
+                        </div>
+                      </>
+                    )}
+
+                    {r.status !== 'pending' && r.comments && (
+                      <div className="review-row">
+                        <strong>Reviewer Comments:</strong>
+                        <p>{r.comments}</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
-        <div className="flow-diagram">
-          <div className="flow-item">
-            <span className="flow-icon">🤖</span>
-            <span className="flow-label">AI Result</span>
-          </div>
-          <span className="flow-arrow">+</span>
-          <div className="flow-item">
-            <span className="flow-icon">📄</span>
-            <span className="flow-label">Evidence</span>
-          </div>
-          <span className="flow-arrow">+</span>
-          <div className="flow-item">
-            <span className="flow-icon">👤</span>
-            <span className="flow-label">Reviewer Decision</span>
-          </div>
-          <span className="flow-arrow">=</span>
-          <div className="flow-item verified">
-            <span className="flow-icon">✅</span>
-            <span className="flow-label">Verified Result</span>
-          </div>
-        </div>
-      </div>
+      )}
     </div>
   );
 };

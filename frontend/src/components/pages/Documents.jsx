@@ -65,7 +65,7 @@ const Documents = () => {
 
   const onDrop = useCallback(async (acceptedFiles) => {
     setIsProcessing(true);
-    toast.loading('Uploading document...');
+    const loadingId = toast.loading('Uploading document...');
 
     for (const file of acceptedFiles) {
       try {
@@ -84,7 +84,7 @@ const Documents = () => {
         };
         
         setUploadedFiles(prev => [newFile, ...prev]);
-        toast.success(`âœ… ${file.name} uploaded successfully!`);
+        toast.success(`✅ ${file.name} uploaded successfully!`, { id: loadingId });
         
         // Start processing
         startProcessing(result.document_id);

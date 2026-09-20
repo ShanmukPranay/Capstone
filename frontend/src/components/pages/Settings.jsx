@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import {
   Settings as SettingsIcon,
   Brain,
@@ -37,16 +37,16 @@ const Settings = () => {
     temperature: 0.2,
     maxTokens: 4096,
     topP: 0.9,
-    apiKey: 'sk-••••••••••••••••'
+    apiKey: 'sk-â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢'
   });
 
   // RAG Settings
   const [ragSettings, setRagSettings] = useState({
     embeddingModel: 'all-MiniLM-L6-v2',
     topK: 5,
-    chunkSize: 500,
+    chunkSize: 400,
     chunkOverlap: 50,
-    vectorDb: 'supabase'
+    vectorDb: 'supabase-pgvector'
   });
 
   // Processing Settings
@@ -86,12 +86,12 @@ const Settings = () => {
 
   const handleSave = () => {
     setSaved(true);
-    toast.success('✅ Settings saved successfully!');
+    toast.success('âœ… Settings saved successfully!');
     setTimeout(() => setSaved(false), 3000);
   };
 
   const handleReset = () => {
-    toast.success('🔄 Settings reset to default');
+    toast.success('ðŸ”„ Settings reset to default');
   };
 
   const handleAddUser = () => {
@@ -102,7 +102,7 @@ const Settings = () => {
     setUsers([...users, { ...newUser, id: Date.now() }]);
     setNewUser({ name: '', email: '', role: 'viewer' });
     setShowAddUser(false);
-    toast.success('✅ User added successfully');
+    toast.success('âœ… User added successfully');
   };
 
   const handleRemoveUser = (id) => {
@@ -217,6 +217,14 @@ const Settings = () => {
           {activeTab === 'llm' && (
             <div className="settings-section">
               <h3>LLM Configuration</h3>
+              <div className="settings-info-banner">
+                <Zap size={16} />
+                <div>
+                  <strong>Active Provider:</strong> OpenRouter · <strong>Model:</strong> nex-agi/nex-n2.5-pro:free
+                  <br />
+                  <span className="settings-info-note">Free tier models are provided by OpenRouter. Change model in the dropdown below.</span>
+                </div>
+              </div>
               <p className="section-desc">Configure the language model settings for legal analysis</p>
               
               <div className="setting-group">
@@ -539,7 +547,7 @@ const Settings = () => {
 
                 <div className="setting-item">
                   <label>Data Encryption</label>
-                  <span className="setting-status enabled">✓ Enabled</span>
+                  <span className="setting-status enabled">âœ“ Enabled</span>
                 </div>
 
                 <div className="setting-item">

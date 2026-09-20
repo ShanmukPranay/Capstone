@@ -29,15 +29,8 @@ async def analyze_document(document_id: str):
             raise HTTPException(400, "Document has no content")
 
         # 2. Build extraction prompt
-        prompt = f"""You are a legal document analyzer. Extract structured information from this document.
-
-CRITICAL RULES:
-1. Return ONLY valid JSON (no markdown, no code fences, no explanation text)
-2. You MUST include ALL fields shown below
-3. The "risks" field MUST contain AT LEAST 2 items if the document is missing any info
-4. The "key_clauses" field MUST contain the main clauses with their text
-
-Return this EXACT structure:
+        prompt = f"""Analyze this legal document and extract structured information.
+Return ONLY valid JSON (no markdown, no code fences) with this exact structure:
 
 {{
   "parties": {{"employer": "...", "employee": "...", "other": []}},
@@ -53,8 +46,7 @@ Return this EXACT structure:
     {{"name": "CONFIDENTIALITY", "text": "...", "evidence": "..."}}
   ],
   "risks": [
-    {{"risk": "Description of what could go wrong (REQUIRED - at least 2 items)", "severity": "low|medium|high", "evidence": "Quote from document"}},
-    {{"risk": "Another risk (REQUIRED)", "severity": "low|medium|high", "evidence": "Quote from document"}}
+    {{"risk": "...", "severity": "low|medium|high", "evidence": "..."}}
   ]
 }}
 
@@ -93,55 +85,6 @@ Return ONLY the JSON object, nothing else:"""
                 "model_used": result.get("model"),
             }
         }).eq("id", document_id).execute()
-
-        # 5b. Fallback: If LLM didn't return risks, generate basic ones
-        if isinstance(analysis, dict) and not analysis.get("risks"):
-            fallback_risks = []
-            
-            # Check for common missing-info risks
-            parties = analysis.get("parties", {})
-            if isinstance(parties, dict):
-                if not parties.get("employer") and not parties.get("employee"):
-                    fallback_risks.append({
-                        "risk": "Parties are not clearly identified in the document",
-                        "severity": "high",
-                        "evidence": "No employer or employee found in extracted data"
-                    })
-            
-            dates = analysis.get("dates", {})
-            if isinstance(dates, dict):
-                if not dates.get("start_date") and not dates.get("end_date"):
-                    fallback_risks.append({
-                        "risk": "Contract start and end dates are missing — may create uncertainty about the employment term",
-                        "severity": "medium",
-                        "evidence": "No start_date or end_date found in document"
-                    })
-            
-            if not analysis.get("notice_period"):
-                fallback_risks.append({
-                    "risk": "Notice period is not specified — ambiguity could lead to disputes",
-                    "severity": "medium",
-                    "evidence": "No notice period found"
-                })
-            
-            if not analysis.get("key_obligations"):
-                fallback_risks.append({
-                    "risk": "Key obligations are not documented clearly",
-                    "severity": "medium",
-                    "evidence": "No obligations extracted from document"
-                })
-            
-            analysis["risks"] = fallback_risks
-            print(f"[analysis] Generated {len(fallback_risks)} fallback risks")
-
-        # ===== DEBUG: Check if risks exist =====
-        print(f"[DEBUG] analysis type: {type(analysis)}")
-        print(f"[DEBUG] has risks key: {isinstance(analysis, dict) and 'risks' in analysis}")
-        if isinstance(analysis, dict):
-            r = analysis.get('risks')
-            print(f"[DEBUG] risks value type: {type(r)}, len: {len(r) if isinstance(r, list) else 'N/A'}")
-            print(f"[DEBUG] risks content: {r}")
-        # ===== END DEBUG =====
 
         # 6. Save risks to database
         try:

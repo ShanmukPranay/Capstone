@@ -1,6 +1,17 @@
 ﻿import React, { useState, useRef, useEffect } from 'react';
 import { Bot, User, Send, X, Link, Shield, Loader2 } from 'lucide-react';
 import api from '../../services/api';
+
+function getCurrentUserId() {
+  try {
+    const stored = localStorage.getItem('currentUser');
+    if (stored) {
+      const user = JSON.parse(stored);
+      return user.id || user.email || 'default-user';
+    }
+  } catch { /* ignore */ }
+  return 'default-user';
+}
 import toast from 'react-hot-toast';
 import './ChatBot.css';
 
@@ -41,7 +52,7 @@ const ChatBot = () => {
   // Create session on first open
   useEffect(() => {
     if (isOpen && !sessionId) {
-      api.createChatSession('default-user', null, 'Chat')
+      api.createChatSession(getCurrentUserId(), null, 'Chat')
         .then(data => {
           setSessionId(data.session.id);
         })
@@ -75,7 +86,7 @@ const ChatBot = () => {
       // Call real backend
       const data = await api.sendChatMessage(
         sessionId,
-        'default-user',
+        getCurrentUserId(),
         messageText,
         null
       );
