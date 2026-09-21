@@ -220,7 +220,7 @@ const Documents = () => {
       'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
       'text/plain': ['.txt']
     },
-    maxSize: 5 * 1024 * 1024,
+    maxSize: 2 * 1024 * 1024,
     maxFiles: 5
   });
 
@@ -346,7 +346,7 @@ const Documents = () => {
             <Upload size={40} />
           </div>
           <h3>{isDragActive ? 'Drop your files here' : 'Upload Legal Document'}</h3>
-          <p>Drag & drop or click to browse · Max 5 MB per file</p>
+          <p>Drag & drop or click to browse · Max 2 MB per file</p>
           <div className="upload-formats">
             <span><FileType size={14} /> PDF</span>
             <span><FileType size={14} /> DOCX</span>

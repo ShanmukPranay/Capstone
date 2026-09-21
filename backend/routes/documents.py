@@ -158,32 +158,40 @@ async def upload_document(
             "name": safe_filename,
             "file_type": file.content_type or "text/plain",
             "file_size": len(content),
-            "content": text_content[:100000],
+            "content": text_content[:20000],
             "status": "processing",
             "document_type": "legal",
         }).execute()
 
         # Chunk & embed
         chunks = rag_engine.chunk_text(text_content)
-        rows = []
+        BATCH_SIZE = 20
+        total_rows = 0
+        batch = []
         for i, chunk in enumerate(chunks):
             safe_chunk = _sanitize_text(chunk)
             if not safe_chunk.strip():
                 continue
-            rows.append({
+            batch.append({
                 "document_id": doc_id,
                 "chunk_index": i,
                 "text": safe_chunk,
                 "token_count": len(safe_chunk.split()),
                 "embedding": embedder.encode(safe_chunk),
             })
-
-        if rows:
-            supabase_admin.table("document_chunks").insert(rows).execute()
+            if len(batch) >= BATCH_SIZE:
+                supabase_admin.table("document_chunks").insert(batch).execute()
+                total_rows += len(batch)
+                batch = []
+                import gc
+                gc.collect()
+        if batch:
+            supabase_admin.table("document_chunks").insert(batch).execute()
+            total_rows += len(batch)
 
         supabase_admin.table("documents").update({
             "status": "analyzed",
-            "total_chunks": len(rows),
+            "total_chunks": total_rows,
             "last_analyzed_at": datetime.utcnow().isoformat(),
         }).eq("id", doc_id).execute()
 
@@ -191,7 +199,7 @@ async def upload_document(
             "status": "success",
             "document_id": doc_id,
             "filename": safe_filename,
-            "total_chunks": len(rows),
+            "total_chunks": total_rows,
             "text_length": len(text_content),
         }
     except HTTPException:
