@@ -74,6 +74,45 @@ export const api = {
     return res.json();
   },
 
+  // Upload with progress callback (uses XHR since fetch can't track upload progress)
+  uploadDocumentWithProgress: (file, userId = getCurrentUserId(), onProgress = null) => {
+    return new Promise((resolve, reject) => {
+      const form = new FormData();
+      form.append("file", file);
+      form.append("user_id", userId);
+
+      const xhr = new XMLHttpRequest();
+      xhr.open("POST", `${API_BASE}/api/documents/upload`);
+
+      // Upload progress
+      if (xhr.upload && onProgress) {
+        xhr.upload.addEventListener("progress", (e) => {
+          if (e.lengthComputable) {
+            const pct = Math.round((e.loaded / e.total) * 100);
+            onProgress(pct);
+          }
+        });
+      }
+
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          try {
+            resolve(JSON.parse(xhr.responseText));
+          } catch {
+            reject(new Error("Invalid JSON response"));
+          }
+        } else {
+          reject(new Error(xhr.responseText || `Upload failed (${xhr.status})`));
+        }
+      };
+
+      xhr.onerror = () => reject(new Error("Network error during upload"));
+      xhr.ontimeout = () => reject(new Error("Upload timed out"));
+
+      xhr.send(form);
+    });
+  },
+
   // ---- RAG Search ----
   ragSearch: (query, documentId = null, topK = 5) =>
     request("/api/rag/search", {

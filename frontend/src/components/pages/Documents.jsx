@@ -42,7 +42,6 @@ const Documents = () => {
     setIsLoading(true);
     try {
       const data = await api.listDocuments();
-      // Convert backend docs to frontend format
       const docs = data.documents.map(doc => ({
         id: doc.id,
         name: doc.name,
@@ -63,14 +62,117 @@ const Documents = () => {
     }
   };
 
+  // Upload with real-time progress bar
   const onDrop = useCallback(async (acceptedFiles) => {
     setIsProcessing(true);
-    const loadingId = toast.loading('Uploading document...');
 
     for (const file of acceptedFiles) {
+      const toastId = `upload-${file.name}-${Date.now()}`;
+      const displayName = file.name.length > 28 ? file.name.slice(0, 25) + '...' : file.name;
+
+      // Show initial 0% toast
+      const showProgress = (pct) => {
+        toast.custom(
+          () => (
+            <div style={{
+              background: '#ffffff',
+              borderRadius: 14,
+              padding: '16px 20px',
+              boxShadow: '0 10px 30px rgba(15, 23, 42, 0.15)',
+              border: '1px solid #e2e8f0',
+              minWidth: 340,
+              maxWidth: 400,
+              fontFamily: 'inherit',
+            }}>
+              <div style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: 10,
+              }}>
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 10,
+                  flex: 1,
+                  minWidth: 0,
+                }}>
+                  <div style={{
+                    width: 32,
+                    height: 32,
+                    borderRadius: 8,
+                    background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                  }}>
+                    <span style={{ fontSize: 16 }}>📤</span>
+                  </div>
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <div style={{
+                      fontSize: 13,
+                      fontWeight: 600,
+                      color: '#0f172a',
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                    }}>
+                      Uploading {displayName}
+                    </div>
+                    <div style={{
+                      fontSize: 11,
+                      color: '#64748b',
+                      marginTop: 2,
+                    }}>
+                      {pct < 100 ? 'Transferring to server...' : 'Processing...'}
+                    </div>
+                  </div>
+                </div>
+                <div style={{
+                  fontSize: 14,
+                  fontWeight: 700,
+                  color: '#6366f1',
+                  marginLeft: 12,
+                  fontVariantNumeric: 'tabular-nums',
+                }}>
+                  {pct}%
+                </div>
+              </div>
+              <div style={{
+                height: 8,
+                background: '#f1f5f9',
+                borderRadius: 4,
+                overflow: 'hidden',
+                position: 'relative',
+              }}>
+                <div style={{
+                  height: '100%',
+                  width: `${pct}%`,
+                  background: 'linear-gradient(90deg, #6366f1, #8b5cf6)',
+                  borderRadius: 4,
+                  transition: 'width 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                  boxShadow: '0 0 8px rgba(99, 102, 241, 0.4)',
+                }} />
+              </div>
+            </div>
+          ),
+          { id: toastId, duration: Infinity }
+        );
+      };
+
+      // Show 0%
+      showProgress(0);
+
       try {
-        const result = await api.uploadDocument(file);
-        
+        // Progress callback from XHR
+        const result = await api.uploadDocumentWithProgress(file, undefined, (pct) => {
+          showProgress(pct);
+        });
+
+        // Brief delay so users see 100% before success replaces it
+        await new Promise(r => setTimeout(r, 400));
+
         const newFile = {
           id: result.document_id,
           name: file.name,
@@ -82,16 +184,15 @@ const Documents = () => {
           uploadedAt: new Date().toLocaleString(),
           chunks: []
         };
-        
+
         setUploadedFiles(prev => [newFile, ...prev]);
-        toast.success(`✅ ${file.name} uploaded successfully!`, { id: loadingId });
-        
-        // Start processing
+        toast.success(`✅ ${displayName} uploaded successfully!`, { id: toastId, duration: 4000 });
+
         startProcessing(result.document_id);
-        
+
       } catch (error) {
         console.error('Upload error:', error);
-        toast.error(`âŒ Failed to upload ${file.name}`);
+        toast.error(`❌ Failed to upload ${displayName}`, { id: toastId, duration: 4000 });
       }
     }
     setIsProcessing(false);
@@ -110,7 +211,7 @@ const Documents = () => {
   const startProcessing = (fileId) => {
     setProcessingStatus(fileId);
     setAnalyzingId(fileId);
-    
+
     const steps = [
       'Document uploaded',
       'Text extracted',
@@ -142,7 +243,7 @@ const Documents = () => {
               : f
           )
         );
-        toast.success('âœ… Analysis complete!');
+        toast.success('✅ Analysis complete!');
       }
     }, 1500);
   };
@@ -152,7 +253,7 @@ const Documents = () => {
     if (!file) return;
 
     if (file.status === 'analyzed') {
-      toast.success('ðŸ“„ Document already analyzed!');
+      toast.success('📄 Document already analyzed!');
       return;
     }
 
@@ -174,7 +275,7 @@ const Documents = () => {
       const data = await api.getDocument(id);
       setSelectedDocument(id);
       setDocumentDetails(data.document);
-      toast.success(`ðŸ“„ Document details loaded`);
+      toast.success('📄 Document details loaded');
     } catch (error) {
       toast.error('Failed to load document details');
     }
@@ -222,7 +323,6 @@ const Documents = () => {
         </div>
       </div>
 
-      {/* Upload Area */}
       <div className="upload-area" {...getRootProps()}>
         <input {...getInputProps()} />
         <div className={`upload-content ${isDragActive ? 'drag-active' : ''}`}>
@@ -242,7 +342,6 @@ const Documents = () => {
         </div>
       </div>
 
-      {/* Processing Status */}
       {isProcessing && processingStatus && (
         <div className="processing-panel">
           <div className="processing-header">
@@ -269,7 +368,7 @@ const Documents = () => {
                     {isComplete ? <CheckCircle size={14} /> : idx + 1}
                   </span>
                   <span className="step-label">{step}</span>
-                  {isComplete && <span className="step-check">âœ“</span>}
+                  {isComplete && <span className="step-check">✓</span>}
                 </div>
               );
             })}
@@ -277,12 +376,11 @@ const Documents = () => {
         </div>
       )}
 
-      {/* File List */}
       {uploadedFiles.length > 0 && (
         <div className="file-list">
           <div className="file-list-header">
             <h3>Uploaded Documents</h3>
-            <span>{uploadedFiles.length} files â€¢ {uploadedFiles.reduce((sum, f) => sum + (f.totalChunks || 0), 0)} chunks</span>
+            <span>{uploadedFiles.length} files • {uploadedFiles.reduce((sum, f) => sum + (f.totalChunks || 0), 0)} chunks</span>
           </div>
           <div className="file-items">
             {uploadedFiles.map((file) => (
@@ -295,11 +393,11 @@ const Documents = () => {
                     <span className="file-name">{file.name}</span>
                     <div className="file-meta">
                       <span>{file.pages} pages</span>
-                      <span>â€¢</span>
+                      <span>•</span>
                       <span>{file.size} KB</span>
-                      <span>â€¢</span>
+                      <span>•</span>
                       <span>{file.totalChunks || 0} chunks</span>
-                      <span>â€¢</span>
+                      <span>•</span>
                       <span>Extracted Text: {file.extractedText}</span>
                     </div>
                   </div>
@@ -310,7 +408,7 @@ const Documents = () => {
                     {file.status === 'analyzed' ? 'Ready for Analysis' :
                      file.status === 'processing' ? 'Processing...' : 'Uploaded'}
                   </span>
-                  <button 
+                  <button
                     className="btn-analyze"
                     onClick={() => handleStartAnalysis(file.id)}
                     disabled={isFileProcessing(file.id)}
@@ -327,7 +425,7 @@ const Documents = () => {
                       </>
                     )}
                   </button>
-                  <button 
+                  <button
                     className="btn-view"
                     onClick={() => viewDocumentDetails(file.id)}
                   >
@@ -343,7 +441,6 @@ const Documents = () => {
         </div>
       )}
 
-      {/* Storage Stats */}
       {uploadedFiles.length > 0 && (
         <div className="storage-stats">
           <div className="stats-card">
@@ -370,7 +467,6 @@ const Documents = () => {
         </div>
       )}
 
-      {/* Empty State */}
       {uploadedFiles.length === 0 && !isProcessing && (
         <div className="empty-state">
           <FileText size={48} className="empty-icon" />
@@ -379,7 +475,6 @@ const Documents = () => {
         </div>
       )}
 
-      {/* New Analysis Modal */}
       {showNewAnalysisModal && (
         <div className="modal-overlay" onClick={() => setShowNewAnalysisModal(false)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
