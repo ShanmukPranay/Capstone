@@ -130,6 +130,14 @@ async def upload_document(
         content = await file.read()
         safe_filename = _sanitize_text(file.filename or "untitled")[:500]
 
+        # Safety cap: prevent OOM on free tier
+        MAX_FILE_SIZE = 10 * 1024 * 1024  # 10 MB
+        if len(content) > MAX_FILE_SIZE:
+            raise HTTPException(
+                413,
+                f"File too large ({len(content) / 1024 / 1024:.1f} MB). Max 10 MB."
+            )
+
         # ===== Extract text based on file type =====
         try:
             text_content = _extract_text(content, file.filename, file.content_type)

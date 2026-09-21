@@ -198,13 +198,29 @@ const Documents = () => {
     setIsProcessing(false);
   }, []);
 
+  const onDropRejected = useCallback((fileRejections) => {
+    fileRejections.forEach(({ file, errors }) => {
+      errors.forEach((err) => {
+        if (err.code === 'file-too-large') {
+          toast.error(`❌ ${file.name} is too large. Max 5 MB.`);
+        } else if (err.code === 'file-invalid-type') {
+          toast.error(`❌ ${file.name} has unsupported format.`);
+        } else {
+          toast.error(`❌ ${file.name}: ${err.message}`);
+        }
+      });
+    });
+  }, []);
+
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
+    onDropRejected,
     accept: {
       'application/pdf': ['.pdf'],
       'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
       'text/plain': ['.txt']
     },
+    maxSize: 5 * 1024 * 1024,
     maxFiles: 5
   });
 
@@ -330,7 +346,7 @@ const Documents = () => {
             <Upload size={40} />
           </div>
           <h3>{isDragActive ? 'Drop your files here' : 'Upload Legal Document'}</h3>
-          <p>Drag & drop or click to browse</p>
+          <p>Drag & drop or click to browse · Max 5 MB per file</p>
           <div className="upload-formats">
             <span><FileType size={14} /> PDF</span>
             <span><FileType size={14} /> DOCX</span>
