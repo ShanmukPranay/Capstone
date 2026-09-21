@@ -14,19 +14,35 @@ function getCurrentUserId() {
   return 'default-user';
 }
 
-async function request(path, options = {}) {
-  const res = await fetch(`${API_BASE}${path}`, {
-    headers: {
-      "Content-Type": "application/json",
-      ...(options.headers || {}),
-    },
-    ...options,
-  });
-  if (!res.ok) {
-    const err = await res.text();
-    throw new Error(`API ${res.status}: ${err}`);
+async function request(path, options = {}, retries = 2) {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const res = await fetch(`${API_BASE}${path}`, {
+        headers: {
+          "Content-Type": "application/json",
+          ...(options.headers || {}),
+        },
+        ...options,
+      });
+      if (!res.ok) {
+        const err = await res.text();
+        // Retry on 502/503/504 (backend waking up)
+        if ((res.status === 502 || res.status === 503 || res.status === 504) && attempt < retries) {
+          await new Promise(r => setTimeout(r, 2000 * (attempt + 1)));
+          continue;
+        }
+        throw new Error(`API ${res.status}: ${err}`);
+      }
+      return res.json();
+    } catch (err) {
+      // Retry on network errors
+      if (attempt < retries && (err.message.includes('Failed to fetch') || err.name === 'TypeError')) {
+        await new Promise(r => setTimeout(r, 2000 * (attempt + 1)));
+        continue;
+      }
+      throw err;
+    }
   }
-  return res.json();
 }
 
 // ===== Documents =====
