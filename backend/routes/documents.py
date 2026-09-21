@@ -81,6 +81,7 @@ def _extract_text(content: bytes, filename: str, content_type: str = None) -> st
 
     if is_pdf:
         text = _extract_text_from_pdf(content)
+        print(f"[PDF DEBUG] Extracted {len(text)} chars, first 200: {text[:200]!r}")
         if not text.strip():
             raise Exception("PDF has no extractable text (might be scanned/image-only).")
         return text

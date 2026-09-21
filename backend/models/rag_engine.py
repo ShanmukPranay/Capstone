@@ -2,7 +2,7 @@
 
 
 class RAGEngine:
-    def __init__(self, chunk_size: int = 400, overlap: int = 50):
+    def __init__(self, chunk_size: int = 100, overlap: int = 20):
         self.chunk_size = chunk_size
         self.overlap = overlap
 
