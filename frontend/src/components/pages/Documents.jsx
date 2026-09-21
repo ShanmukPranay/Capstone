@@ -174,7 +174,7 @@ const Documents = () => {
       const data = await api.getDocument(id);
       setSelectedDocument(id);
       setDocumentDetails(data.document);
-      toast.info(`ðŸ“„ Document details loaded`);
+      toast.success(`ðŸ“„ Document details loaded`);
     } catch (error) {
       toast.error('Failed to load document details');
     }
@@ -404,7 +404,7 @@ const Documents = () => {
                 </div>
                 <div className="analysis-option" onClick={() => {
                   setShowNewAnalysisModal(false);
-                  toast.info('Select a document from the list to re-analyze');
+                  toast.success('Select a document from the list to re-analyze');
                 }}>
                   <div className="option-icon-wrapper">
                     <FileText size={28} className="option-icon" />
@@ -414,7 +414,7 @@ const Documents = () => {
                 </div>
                 <div className="analysis-option" onClick={() => {
                   setShowNewAnalysisModal(false);
-                  toast.info('Navigate to Risk Analysis page');
+                  toast.success('Navigate to Risk Analysis page');
                 }}>
                   <div className="option-icon-wrapper">
                     <AlertCircle size={28} className="option-icon" />

@@ -42,7 +42,7 @@ const Evidence = () => {
       if (unique.length > 0) {
         toast.success(`Loaded ${unique.length} unique citations`);
       } else {
-        toast.info('No evidence yet. Ask questions in the ChatBot to generate citations.');
+        toast.success('No evidence yet. Ask questions in the ChatBot to generate citations.');
       }
     } catch (err) {
       console.error('Failed to load evidence:', err);
